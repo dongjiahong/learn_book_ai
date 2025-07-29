@@ -1,0 +1,27 @@
+name: rag-learning-platform
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - fastapi
+    - uvicorn[standard]
+    - sqlalchemy
+    - alembic
+    - pyjwt
+    - passlib[bcrypt]
+    - python-multipart
+    - python-jose[cryptography]
+    - chromadb
+    - llama-index
+    - llama-index-embeddings-huggingface
+    - sentence-transformers
+    - openai
+    - ollama
+    - genanki
+    - toml
+    - pytest
+    - pytest-asyncio
+    - httpx

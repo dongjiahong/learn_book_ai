@@ -1,0 +1,53 @@
+[database]
+url = "sqlite:///./rag_learning.db"
+echo = false
+
+[auth]
+secret_key = "your-secret-key-here"
+algorithm = "HS256"
+access_token_expire_minutes = 600
+
+[llm]
+provider = "ollama"          # or "openai"
+fallback_provider = "openai" # optional fallback provider
+model = "qwen3:1.7b"
+temperature = 0.7
+max_tokens = 2048
+health_check_interval = 300  # seconds
+
+[openai]
+api_key = ""
+model = "gpt-3.5-turbo"
+timeout = 30
+
+[ollama]
+base_url = "http://localhost:11434"
+model = "qwen3:1.7b"
+timeout = 30
+
+[embeddings]
+provider = "ollama"
+model = "shaw/dmeta-embedding-zh-small-q4"
+dimension = 768
+batch_size = 32
+
+[vector_store]
+provider = "chroma"
+persist_directory = "./chroma_db"
+collection_name = "learning_materials"
+
+[anki]
+deck_name = "RAG Learning Deck"
+model_name = "Basic"
+
+[server]
+host = "0.0.0.0"
+port = 8800
+debug = true
+reload = true
+
+[cors]
+allow_origins = ["http://localhost:3300"]
+allow_credentials = true
+allow_methods = ["*"]
+allow_headers = ["*"]
