@@ -2,7 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.documents import router as documents_router
+from app.api.questions import router as questions_router
+from app.api.rag import router as rag_router
 from app.core.config import config
+from app.services.document_processor import document_processor
 
 app = FastAPI(
     title="RAG Learning Platform API",
@@ -21,6 +25,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(documents_router)
+app.include_router(questions_router)
+app.include_router(rag_router)
 
 @app.get("/")
 async def root():
@@ -29,6 +36,11 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown"""
+    document_processor.stop()
 
 if __name__ == "__main__":
     import uvicorn

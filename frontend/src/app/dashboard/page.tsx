@@ -4,7 +4,8 @@
 'use client';
 
 import { Button, Card, Typography, Space } from 'antd';
-import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { LogoutOutlined, UserOutlined, FolderOutlined, FileTextOutlined, BookOutlined } from '@ant-design/icons';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
@@ -60,6 +61,60 @@ function DashboardContent() {
             </div>
           </Space>
         </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <Card
+            hoverable
+            className="text-center"
+            actions={[
+              <Link key="manage" href="/knowledge-bases">
+                <Button type="primary" icon={<FolderOutlined />}>
+                  管理知识库
+                </Button>
+              </Link>
+            ]}
+          >
+            <Card.Meta
+              avatar={<FolderOutlined className="text-3xl text-blue-500" />}
+              title="知识库管理"
+              description="创建和管理您的知识库，组织学习材料"
+            />
+          </Card>
+
+          <Card
+            hoverable
+            className="text-center"
+            actions={[
+              <Link key="questions" href="/questions">
+                <Button type="primary" icon={<FileTextOutlined />}>
+                  问题管理
+                </Button>
+              </Link>
+            ]}
+          >
+            <Card.Meta
+              avatar={<FileTextOutlined className="text-3xl text-green-500" />}
+              title="智能学习"
+              description="基于文档内容自动生成学习问题"
+            />
+          </Card>
+
+          <Card
+            hoverable
+            className="text-center"
+            actions={[
+              <Button key="review" disabled>
+                即将推出
+              </Button>
+            ]}
+          >
+            <Card.Meta
+              avatar={<BookOutlined className="text-3xl text-orange-500" />}
+              title="复习系统"
+              description="基于记忆曲线的智能复习安排"
+            />
+          </Card>
+        </div>
 
         <Card title="快速开始">
           <Space direction="vertical" size="large" className="w-full">
