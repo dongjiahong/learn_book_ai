@@ -31,8 +31,6 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-const { TabPane } = Tabs;
-
 interface ReviewRecordsListProps {
   onRecordUpdate?: () => void;
   dueReviews?: ReviewRecord[];
@@ -55,7 +53,7 @@ export default function ReviewRecordsList({
       loadReviews();
       loadDueReviews();
     }
-  }, [tokens]);
+  }, [loadDueReviews, loadReviews, tokens]);
 
   useEffect(() => {
     if (dueReviews) {
@@ -313,82 +311,86 @@ export default function ReviewRecordsList({
 
   return (
     <div className="space-y-4">
-      <Tabs defaultActiveKey="due">
-        <TabPane 
-          tab={
-            <span>
-              <ClockCircleOutlined />
-              Due Reviews ({dueReviewsList.length})
-            </span>
-          } 
-          key="due"
-        >
-          <Card>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Reviews Due Now</h3>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={loadDueReviews}
-                loading={loading}
-              >
-                Refresh
-              </Button>
-            </div>
-            
-            {dueReviewsList.length > 0 ? (
-              <Table
-                columns={dueColumns}
-                dataSource={dueReviewsList}
-                rowKey="id"
-                loading={loading}
-                pagination={false}
-              />
-            ) : (
-              <Empty
-                description="No reviews due at the moment"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            )}
-          </Card>
-        </TabPane>
-
-        <TabPane 
-          tab={
-            <span>
-              <CheckCircleOutlined />
-              All Reviews ({allReviews.length})
-            </span>
-          } 
-          key="all"
-        >
-          <Card>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">All Review Records</h3>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={loadReviews}
-                loading={loading}
-              >
-                Refresh
-              </Button>
-            </div>
-            
-            <Table
-              columns={allColumns}
-              dataSource={allReviews}
-              rowKey="id"
-              loading={loading}
-              pagination={{
-                pageSize: 20,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) =>
-                  `${range[0]}-${range[1]} of ${total} records`,
-              }}
-            />
-          </Card>
-        </TabPane>
-      </Tabs>
+      <Tabs 
+        defaultActiveKey="due"
+        items={[
+          {
+            key: "due",
+            label: (
+              <span>
+                <ClockCircleOutlined />
+                Due Reviews ({dueReviewsList.length})
+              </span>
+            ),
+            children: (
+              <Card>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium">Reviews Due Now</h3>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={loadDueReviews}
+                    loading={loading}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+                
+                {dueReviewsList.length > 0 ? (
+                  <Table
+                    columns={dueColumns}
+                    dataSource={dueReviewsList}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={false}
+                  />
+                ) : (
+                  <Empty
+                    description="No reviews due at the moment"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                )}
+              </Card>
+            )
+          },
+          {
+            key: "all",
+            label: (
+              <span>
+                <CheckCircleOutlined />
+                All Reviews ({allReviews.length})
+              </span>
+            ),
+            children: (
+              <Card>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium">All Review Records</h3>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={loadReviews}
+                    loading={loading}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+                
+                <Table
+                  columns={allColumns}
+                  dataSource={allReviews}
+                  rowKey="id"
+                  loading={loading}
+                  pagination={{
+                    pageSize: 20,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total, range) =>
+                      `${range[0]}-${range[1]} of ${total} records`,
+                  }}
+                />
+              </Card>
+            )
+          }
+        ]}
+      />
 
       {/* Review Modal */}
       <Modal

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
 from app.api.auth import router as auth_router
 from app.api.documents import router as documents_router
@@ -12,12 +13,25 @@ from app.api.review import router as review_router
 from app.api.anki import router as anki_router
 from app.core.config import config
 from app.services.document_processor import document_processor
+from app.models.init_db import init_database, create_sample_data
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="RAG Learning Platform API",
     description="A RAG-based learning platform API",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on application startup"""
+    logger.info("Initializing database...")
+    if init_database():
+        create_sample_data()
+        logger.info("Database initialization completed")
+    else:
+        logger.error("Database initialization failed")
 
 # Configure CORS
 app.add_middleware(

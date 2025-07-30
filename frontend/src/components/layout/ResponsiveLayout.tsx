@@ -41,7 +41,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { mode, setMode, isDark } = useTheme();
+  const { setMode, isDark } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const screens = useBreakpoint();
@@ -224,7 +224,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
           closable={false}
           onClose={() => setMobileDrawerOpen(false)}
           open={mobileDrawerOpen}
-          bodyStyle={{ padding: 0 }}
+          styles={{ body: { padding: 0 } }}
           width={240}
           className="mobile-drawer"
         >
@@ -269,27 +269,38 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
             )}
           </div>
 
-          <Dropdown
-            menu={{ items: userMenuItems }}
-            placement="bottomRight"
-            arrow
-            trigger={['click']}
-          >
-            <Space className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 px-3 py-2 rounded-lg transition-colors">
-              <Avatar size="small" icon={<UserOutlined />} />
-              {!isMobile && (
-                <div className="hidden sm:block">
-                  <Text strong className="text-gray-800 dark:text-gray-200">
-                    {user?.username}
-                  </Text>
-                  <br />
-                  <Text type="secondary" className="text-xs">
-                    {user?.email}
-                  </Text>
-                </div>
-              )}
-            </Space>
-          </Dropdown>
+          {user ? (
+            <Dropdown
+              menu={{ items: userMenuItems }}
+              placement="bottomRight"
+              arrow
+              trigger={['click']}
+            >
+              <div className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 px-3 py-2 rounded-lg transition-colors">
+                <Space align="center">
+                  <Avatar size="small" icon={<UserOutlined />} />
+                  {!isMobile && (
+                    <div className="flex flex-col items-start">
+                      <Text strong className="text-gray-800 dark:text-gray-200 text-sm leading-tight">
+                        {user.username}
+                      </Text>
+                      <Text type="secondary" className="text-xs leading-tight">
+                        {user.email}
+                      </Text>
+                    </div>
+                  )}
+                </Space>
+              </div>
+            </Dropdown>
+          ) : (
+            <Button 
+              type="primary" 
+              onClick={() => router.push('/auth/login')}
+              size="small"
+            >
+              登录
+            </Button>
+          )}
         </Header>
 
         <Content className="bg-gray-50 dark:bg-gray-900 overflow-auto">

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, Statistic, Row, Col, Typography, Space, Progress, Divider } from 'antd';
-import { TrophyOutlined, CalendarOutlined, FireOutlined, TargetOutlined } from '@ant-design/icons';
+import { TrophyOutlined, CalendarOutlined, FireOutlined, AimOutlined } from '@ant-design/icons';
 import { ReviewStatistics, DailySummary, WeeklySummary } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/lib/api';
@@ -70,7 +70,7 @@ export default function ReviewStatisticsCard({ statistics }: ReviewStatisticsCar
             title="Avg Ease Factor"
             value={statistics.average_ease_factor}
             precision={2}
-            prefix={<TargetOutlined />}
+            prefix={<AimOutlined />}
             valueStyle={{ fontSize: '16px' }}
           />
         </Col>

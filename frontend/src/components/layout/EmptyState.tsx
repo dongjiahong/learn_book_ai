@@ -38,22 +38,23 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <div className="text-center max-w-md mx-auto px-4">
         <Empty
           image={image || Empty.PRESENTED_IMAGE_SIMPLE}
-          imageStyle={{
-            height: isMobile ? 80 : 120,
-            marginBottom: isMobile ? 16 : 24,
+          styles={{
+            image: {
+              height: isMobile ? 80 : 120,
+              marginBottom: isMobile ? 16 : 24,
+            }
           }}
           description={
             <div className="space-y-2">
-              <Text 
-                className={`block font-medium text-gray-800 dark:text-gray-200 ${
-                  isMobile ? 'text-base' : 'text-lg'
-                }`}
+              <Text
+                className={`block font-medium text-gray-800 dark:text-gray-200 ${isMobile ? 'text-base' : 'text-lg'
+                  }`}
               >
                 {title}
               </Text>
               {description && (
-                <Text 
-                  type="secondary" 
+                <Text
+                  type="secondary"
                   className={`block ${isMobile ? 'text-sm' : 'text-base'}`}
                 >
                   {description}

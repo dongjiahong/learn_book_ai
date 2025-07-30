@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Typography, Space, Statistic, Row, Col, Progress, message, Spin, Empty, Badge, Alert } from 'antd';
 import { ClockCircleOutlined, TrophyOutlined, FireOutlined, BookOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { ResponsiveLayout } from '@/components/layout/ResponsiveLayout';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient, DueReviewItem, ReviewStatistics, ReviewReminder } from '@/lib/api';
 import ReviewSession from '@/components/learning/ReviewSession';
@@ -24,7 +26,7 @@ export default function ReviewPage() {
     if (tokens?.access_token) {
       loadReviewData();
     }
-  }, [tokens]);
+  }, [loadReviewData, tokens]);
 
   const loadReviewData = async () => {
     if (!tokens?.access_token) return;
@@ -94,27 +96,37 @@ export default function ReviewPage() {
     setCurrentReview(null);
   };
 
-  if (loading) {
+  if (reviewMode && currentReview) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <Spin size="large" />
-      </div>
+      <ProtectedRoute>
+        <ResponsiveLayout>
+          <ReviewSession
+            reviewItem={currentReview}
+            onComplete={handleReviewComplete}
+            onExit={exitReviewMode}
+            remainingCount={dueReviews.length}
+          />
+        </ResponsiveLayout>
+      </ProtectedRoute>
     );
   }
 
-  if (reviewMode && currentReview) {
+  if (loading) {
     return (
-      <ReviewSession
-        reviewItem={currentReview}
-        onComplete={handleReviewComplete}
-        onExit={exitReviewMode}
-        remainingCount={dueReviews.length}
-      />
+      <ProtectedRoute>
+        <ResponsiveLayout>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <Spin size="large" />
+          </div>
+        </ResponsiveLayout>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <ProtectedRoute>
+      <ResponsiveLayout>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '24px' }}>
         <Title level={2}>
           <BookOutlined style={{ marginRight: '8px' }} />
@@ -267,6 +279,8 @@ export default function ReviewPage() {
           </Space>
         </Col>
       </Row>
-    </div>
+        </div>
+      </ResponsiveLayout>
+    </ProtectedRoute>
   );
 }
