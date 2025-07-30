@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { QuestionDetail } from '@/components/questions/QuestionDetail';
 import { Question } from '@/lib/api';
@@ -18,8 +19,8 @@ function QuestionsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
+    <MainLayout>
+      <div className="p-6">
         {selectedQuestion ? (
           <QuestionDetail
             question={selectedQuestion}
@@ -30,7 +31,7 @@ function QuestionsContent() {
           <QuestionList onSelectQuestion={handleSelectQuestion} />
         )}
       </div>
-    </div>
+    </MainLayout>
   );
 }
 

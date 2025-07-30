@@ -47,7 +47,12 @@ debug = true
 reload = true
 
 [cors]
-allow_origins = ["http://localhost:3300"]
+allow_origins = [
+    "http://localhost:3300",
+    "http://172.18.3.1:3300",
+    "http://172.18.3.1:3000",
+    "http://localhost:3000",
+]
 allow_credentials = true
 allow_methods = ["*"]
 allow_headers = ["*"]

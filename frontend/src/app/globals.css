@@ -24,3 +24,41 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 自定义左侧导航栏样式 */
+.ant-layout-sider {
+  box-shadow: 2px 0 8px 0 rgba(29, 35, 41, 0.05);
+}
+
+.ant-menu-item {
+  border-radius: 6px !important;
+  margin: 4px 8px !important;
+  width: calc(100% - 16px) !important;
+}
+
+.ant-menu-item-selected {
+  background-color: #e6f4ff !important;
+  border-color: #1890ff !important;
+}
+
+.ant-menu-item-selected a {
+  color: #1890ff !important;
+  font-weight: 500;
+}
+
+.ant-menu-item:hover {
+  background-color: #f5f5f5 !important;
+}
+
+/* 头部样式优化 */
+.ant-layout-header {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 24px;
+  height: 64px;
+  line-height: 64px;
+}
+
+/* 内容区域样式 */
+.ant-layout-content {
+  min-height: calc(100vh - 64px);
+}

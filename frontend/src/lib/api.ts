@@ -3,7 +3,7 @@
  */
 import { AuthTokens, User } from '@/stores/authStore';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8800';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://172.18.3.1:8800';
 
 export interface LoginRequest {
   username: string;
