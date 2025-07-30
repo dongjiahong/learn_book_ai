@@ -4,7 +4,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App } from 'antd';
 import { useState } from 'react';
 import zhCN from 'antd/locale/zh_CN';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -25,7 +25,9 @@ const ThemedConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       locale={zhCN}
       theme={antdTheme}
     >
-      {children}
+      <App>
+        {children}
+      </App>
     </ConfigProvider>
   );
 };

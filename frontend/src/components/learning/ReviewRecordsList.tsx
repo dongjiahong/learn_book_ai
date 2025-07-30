@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -48,23 +48,12 @@ export default function ReviewRecordsList({
   const [selectedReview, setSelectedReview] = useState<ReviewRecord | null>(null);
   const [reviewQuality, setReviewQuality] = useState(3);
 
-  useEffect(() => {
-    if (tokens?.access_token) {
-      loadReviews();
-      loadDueReviews();
-    }
-  }, [loadDueReviews, loadReviews, tokens]);
-
-  useEffect(() => {
-    if (dueReviews) {
-      setDueReviewsList(dueReviews);
-    }
-  }, [dueReviews]);
-
-  const loadReviews = async () => {
+  const loadReviews = useCallback(async () => {
+    if (!tokens?.access_token) return;
+    
     try {
       setLoading(true);
-      const data = await apiClient.getReviewRecords(tokens!.access_token, 0, 100);
+      const data = await apiClient.getReviewRecords(tokens.access_token, 0, 100);
       setAllReviews(data);
     } catch (error) {
       console.error('Failed to load review records:', error);
@@ -72,16 +61,29 @@ export default function ReviewRecordsList({
     } finally {
       setLoading(false);
     }
-  };
+  }, [tokens?.access_token]);
 
-  const loadDueReviews = async () => {
+  const loadDueReviews = useCallback(async () => {
+    if (!tokens?.access_token) return;
+    
     try {
-      const data = await apiClient.getDueReviews(tokens!.access_token, 50);
+      const data = await apiClient.getDueReviews(tokens.access_token, 50);
       setDueReviewsList(data);
     } catch (error) {
       console.error('Failed to load due reviews:', error);
     }
-  };
+  }, [tokens?.access_token]);
+
+  useEffect(() => {
+    loadReviews();
+    loadDueReviews();
+  }, [loadReviews, loadDueReviews]);
+
+  useEffect(() => {
+    if (dueReviews) {
+      setDueReviewsList(dueReviews);
+    }
+  }, [dueReviews]);
 
   const handleStartReview = (record: ReviewRecord) => {
     setSelectedReview(record);

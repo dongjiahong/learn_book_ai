@@ -36,13 +36,15 @@ async def create_knowledge_base(
 ):
     """Create a new knowledge base"""
     try:
+        logger.info(f"Creating knowledge base for user {current_user.id}: {knowledge_base.dict()}")
         db_knowledge_base = knowledge_base_crud.create_for_user(
             db=db, obj_in=knowledge_base, user_id=current_user.id
         )
+        logger.info(f"Successfully created knowledge base with id {db_knowledge_base.id}")
         return db_knowledge_base
     except Exception as e:
-        logger.error(f"Error creating knowledge base: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create knowledge base")
+        logger.error(f"Error creating knowledge base: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create knowledge base: {str(e)}")
 
 
 @router.get("/knowledge-bases", response_model=KnowledgeBaseListResponse)

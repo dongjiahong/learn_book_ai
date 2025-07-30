@@ -560,8 +560,32 @@ class ApiClient {
     const response = await fetch(url, config);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail;
+          } else if (Array.isArray(errorData.detail)) {
+            // Handle validation errors
+            errorMessage = errorData.detail.map((err: unknown) => {
+              if (typeof err === 'object' && err !== null && 'loc' in err && 'msg' in err) {
+                const validationErr = err as { loc?: string[]; msg?: string };
+                return `${validationErr.loc?.join('.') || 'field'}: ${validationErr.msg || 'validation error'}`;
+              }
+              return String(err);
+            }).join(', ');
+          } else {
+            errorMessage = JSON.stringify(errorData.detail);
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (e) {
+        // If JSON parsing fails, use the status text
+        errorMessage = response.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -636,9 +660,14 @@ class ApiClient {
     token: string,
     data: KnowledgeBaseCreate
   ): Promise<KnowledgeBase> {
+    // Filter out undefined values
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
+    );
+    
     return this.authenticatedRequest<KnowledgeBase>('/api/knowledge-bases', token, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(cleanData),
     });
   }
 
@@ -647,9 +676,14 @@ class ApiClient {
     id: number,
     data: KnowledgeBaseUpdate
   ): Promise<KnowledgeBase> {
+    // Filter out undefined values
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
+    );
+    
     return this.authenticatedRequest<KnowledgeBase>(`/api/knowledge-bases/${id}`, token, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(cleanData),
     });
   }
 
@@ -1230,14 +1264,14 @@ class ApiClient {
   }
 
   // Review and Spaced Repetition endpoints
-  async getDueReviews(
+  async getSpacedRepetitionDueReviews(
     token: string,
     limit: number = 50
   ): Promise<DueReviewItem[]> {
     return this.authenticatedRequest(`/api/review/due?limit=${limit}`, token);
   }
 
-  async completeReview(
+  async completeSpacedRepetitionReview(
     token: string,
     reviewData: ReviewSubmission
   ): Promise<ReviewResponse> {

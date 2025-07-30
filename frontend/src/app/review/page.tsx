@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Typography, Space, Statistic, Row, Col, Progress, message, Spin, Empty, Badge, Alert } from 'antd';
 import { ClockCircleOutlined, TrophyOutlined, FireOutlined, BookOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -22,13 +22,13 @@ export default function ReviewPage() {
   const [currentReview, setCurrentReview] = useState<DueReviewItem | null>(null);
   const [reviewMode, setReviewMode] = useState(false);
 
-  const loadReviewData = async () => {
+  const loadReviewData = useCallback(async () => {
     if (!tokens?.access_token) return;
 
     try {
       setLoading(true);
       const [dueReviewsData, statisticsData, remindersData] = await Promise.all([
-        apiClient.getDueReviews(tokens.access_token),
+        apiClient.getSpacedRepetitionDueReviews(tokens.access_token),
         apiClient.getReviewStatistics(tokens.access_token),
         apiClient.getReviewReminders(tokens.access_token)
       ]);
@@ -42,13 +42,11 @@ export default function ReviewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tokens?.access_token]);
 
   useEffect(() => {
-    if (tokens?.access_token) {
-      loadReviewData();
-    }
-  }, [loadReviewData, tokens]);
+    loadReviewData();
+  }, [loadReviewData]);
 
 
   const startReviewSession = () => {
@@ -62,7 +60,7 @@ export default function ReviewPage() {
     if (!currentReview || !tokens?.access_token) return;
 
     try {
-      await apiClient.completeReview(tokens.access_token, {
+      await apiClient.completeSpacedRepetitionReview(tokens.access_token, {
         content_id: currentReview.content_id,
         content_type: currentReview.content_type,
         quality

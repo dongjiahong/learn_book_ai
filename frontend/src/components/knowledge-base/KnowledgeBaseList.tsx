@@ -8,12 +8,12 @@ import {
   Modal,
   Form,
   Input,
-  message,
   Popconfirm,
   Typography,
   Space,
   Tag,
-  Empty
+  Empty,
+  App
 } from 'antd';
 import {
   PlusOutlined,
@@ -34,6 +34,7 @@ interface KnowledgeBaseListProps {
 
 export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListProps) {
   const { tokens } = useAuth();
+  const { message } = App.useApp();
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -78,13 +79,19 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
     if (!tokens?.access_token) return;
 
     try {
+      // Clean up the data - remove undefined values and convert empty strings to undefined
+      const cleanedValues: KnowledgeBaseCreate = {
+        name: values.name.trim(),
+        description: values.description && values.description.trim() ? values.description.trim() : undefined
+      };
+
       if (editingKb) {
         // Update existing knowledge base
-        await apiClient.updateKnowledgeBase(tokens.access_token, editingKb.id, values);
+        await apiClient.updateKnowledgeBase(tokens.access_token, editingKb.id, cleanedValues);
         message.success('知识库更新成功');
       } else {
         // Create new knowledge base
-        await apiClient.createKnowledgeBase(tokens.access_token, values);
+        await apiClient.createKnowledgeBase(tokens.access_token, cleanedValues);
         message.success('知识库创建成功');
       }
       
@@ -92,8 +99,11 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
       form.resetFields();
       fetchKnowledgeBases();
     } catch (error) {
-      message.error(editingKb ? '更新知识库失败' : '创建知识库失败');
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      message.error(`${editingKb ? '更新知识库失败' : '创建知识库失败'}: ${errorMessage}`);
       console.error('Error saving knowledge base:', error);
+      console.error('Request data:', values);
+      console.error('Token:', tokens?.access_token ? 'Present' : 'Missing');
     }
   };
 
