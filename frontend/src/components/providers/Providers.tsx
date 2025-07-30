@@ -7,10 +7,28 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider } from 'antd';
 import { useState } from 'react';
 import zhCN from 'antd/locale/zh_CN';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { NotificationProvider } from '@/components/feedback/NotificationProvider';
+import { KeyboardShortcutProvider } from '@/components/providers/KeyboardShortcutProvider';
+import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
 
 interface ProvidersProps {
   children: React.ReactNode;
 }
+
+// Inner component that uses theme context
+const ThemedConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { antdTheme } = useTheme();
+
+  return (
+    <ConfigProvider
+      locale={zhCN}
+      theme={antdTheme}
+    >
+      {children}
+    </ConfigProvider>
+  );
+};
 
 export const Providers: React.FC<ProvidersProps> = ({ children }) => {
   const [queryClient] = useState(
@@ -33,18 +51,18 @@ export const Providers: React.FC<ProvidersProps> = ({ children }) => {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ConfigProvider
-        locale={zhCN}
-        theme={{
-          token: {
-            colorPrimary: '#1890ff',
-            borderRadius: 6,
-          },
-        }}
-      >
-        {children}
-      </ConfigProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ThemedConfigProvider>
+            <NotificationProvider>
+              <KeyboardShortcutProvider>
+                {children}
+              </KeyboardShortcutProvider>
+            </NotificationProvider>
+          </ThemedConfigProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };

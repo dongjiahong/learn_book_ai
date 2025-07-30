@@ -1,8 +1,32 @@
 @import "tailwindcss";
 
+/* CSS Custom Properties for theme */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Theme colors will be set by ThemeProvider */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #fafafa;
+  --color-bg-tertiary: #f5f5f5;
+  --color-text-primary: #262626;
+  --color-text-secondary: #595959;
+  --color-border-primary: #d9d9d9;
+  --color-border-secondary: #f0f0f0;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+
+  /* Border radius */
+  --border-radius-sm: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+  --border-radius-xl: 12px;
 }
 
 @theme inline {
@@ -12,28 +36,88 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Dark mode colors */
+[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --color-bg-primary: #141414;
+  --color-bg-secondary: #1f1f1f;
+  --color-bg-tertiary: #262626;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #d9d9d9;
+  --color-border-primary: #434343;
+  --color-border-secondary: #303030;
+}
+
+/* Auto mode - follows system preference */
 @media (prefers-color-scheme: dark) {
-  :root {
+  [data-theme="auto"] {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --color-bg-primary: #141414;
+    --color-bg-secondary: #1f1f1f;
+    --color-bg-tertiary: #262626;
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #d9d9d9;
+    --color-border-primary: #434343;
+    --color-border-secondary: #303030;
   }
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 自定义左侧导航栏样式 */
+/* Responsive utilities */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 var(--spacing-lg);
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    padding: 0 var(--spacing-xl);
+  }
+}
+
+/* Layout improvements */
 .ant-layout-sider {
   box-shadow: 2px 0 8px 0 rgba(29, 35, 41, 0.05);
+  transition: all 0.2s ease;
 }
 
+[data-theme="dark"] .ant-layout-sider {
+  box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* Menu styling improvements */
 .ant-menu-item {
-  border-radius: 6px !important;
-  margin: 4px 8px !important;
+  border-radius: var(--border-radius-md) !important;
+  margin: var(--spacing-xs) var(--spacing-sm) !important;
   width: calc(100% - 16px) !important;
+  transition: all 0.2s ease !important;
 }
 
 .ant-menu-item-selected {
@@ -48,17 +132,205 @@ body {
 
 .ant-menu-item:hover {
   background-color: #f5f5f5 !important;
+  transform: translateX(2px);
 }
 
-/* 头部样式优化 */
+[data-theme="dark"] .ant-menu-item:hover {
+  background-color: #262626 !important;
+}
+
+[data-theme="dark"] .ant-menu-item-selected {
+  background-color: #111b26 !important;
+}
+
+/* Header improvements */
 .ant-layout-header {
-  border-bottom: 1px solid #f0f0f0;
-  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  padding: 0 var(--spacing-md);
   height: 64px;
   line-height: 64px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
 }
 
-/* 内容区域样式 */
+@media (min-width: 768px) {
+  .ant-layout-header {
+    padding: 0 var(--spacing-lg);
+  }
+}
+
+/* Content area */
 .ant-layout-content {
   min-height: calc(100vh - 64px);
+  transition: all 0.2s ease;
+}
+
+/* Mobile drawer styles */
+.mobile-drawer .ant-drawer-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-drawer .ant-menu {
+  flex: 1;
+  border-right: none;
+}
+
+/* Card improvements */
+.ant-card {
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .ant-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Button improvements */
+.ant-btn {
+  border-radius: var(--border-radius-md);
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.ant-btn:hover {
+  transform: translateY(-1px);
+}
+
+.ant-btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+/* Input improvements */
+.ant-input,
+.ant-select-selector,
+.ant-picker {
+  border-radius: var(--border-radius-md);
+  transition: all 0.2s ease;
+}
+
+.ant-input:focus,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Loading and animation improvements */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive text */
+.text-responsive {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  .text-responsive {
+    font-size: 16px;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1890ff;
+}
+
+/* Print styles */
+@media print {
+
+  .ant-layout-sider,
+  .ant-layout-header {
+    display: none !important;
+  }
+
+  .ant-layout-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Accessibility improvements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus styles */
+.ant-btn:focus-visible,
+.ant-input:focus-visible,
+.ant-select:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .ant-menu-item {
+    border: 1px solid transparent;
+  }
+
+  .ant-menu-item-selected {
+    border-color: #1890ff;
+  }
 }

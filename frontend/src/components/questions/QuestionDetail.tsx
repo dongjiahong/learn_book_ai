@@ -327,8 +327,9 @@ export function QuestionDetail({ question, onBack, onUpdate }: QuestionDetailPro
             <Space direction="vertical" className="w-full">
               <Button
                 block
+                type="primary"
                 icon={<QuestionCircleOutlined />}
-                disabled
+                onClick={() => window.open(`/practice?question=${question.id}`, '_blank')}
               >
                 开始答题
               </Button>
@@ -348,7 +349,7 @@ export function QuestionDetail({ question, onBack, onUpdate }: QuestionDetailPro
               </Button>
             </Space>
             <Text type="secondary" className="text-xs mt-2 block">
-              这些功能将在后续版本中提供
+              部分功能将在后续版本中提供
             </Text>
           </Card>
         </Col>

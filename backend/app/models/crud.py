@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func
+from datetime import datetime
 import logging
 
 from .database import Base
@@ -441,7 +442,459 @@ class CRUDQuestion(CRUDBase[Question, None, None]):
             raise
 
 
+class CRUDAnswerRecord(CRUDBase[AnswerRecord, None, None]):
+    """CRUD operations for AnswerRecord"""
+    
+    def get_by_user(
+        self, 
+        db: Session, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[AnswerRecord]:
+        """Get answer records by user ID with pagination"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(self.model.user_id == user_id)
+                .order_by(self.model.answered_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting answer records for user {user_id}: {e}")
+            raise
+    
+    def get_by_question(
+        self, 
+        db: Session, 
+        question_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[AnswerRecord]:
+        """Get answer records by question ID with pagination"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(self.model.question_id == question_id)
+                .order_by(self.model.answered_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting answer records for question {question_id}: {e}")
+            raise
+    
+    def get_by_knowledge_base(
+        self, 
+        db: Session, 
+        user_id: int,
+        knowledge_base_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[AnswerRecord]:
+        """Get answer records by knowledge base ID through document and question relationships"""
+        try:
+            return (
+                db.query(self.model)
+                .join(Question)
+                .join(Document)
+                .filter(
+                    self.model.user_id == user_id,
+                    Document.knowledge_base_id == knowledge_base_id
+                )
+                .order_by(self.model.answered_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting answer records for knowledge base {knowledge_base_id}: {e}")
+            raise
+    
+    def get_by_score_range(
+        self, 
+        db: Session, 
+        user_id: int,
+        min_score: float = None,
+        max_score: float = None,
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[AnswerRecord]:
+        """Get answer records by score range"""
+        try:
+            query = db.query(self.model).filter(self.model.user_id == user_id)
+            
+            if min_score is not None:
+                query = query.filter(self.model.score >= min_score)
+            if max_score is not None:
+                query = query.filter(self.model.score <= max_score)
+            
+            return (
+                query
+                .order_by(self.model.answered_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting answer records by score range for user {user_id}: {e}")
+            raise
+    
+    def get_by_date_range(
+        self, 
+        db: Session, 
+        user_id: int,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[AnswerRecord]:
+        """Get answer records by date range"""
+        try:
+            query = db.query(self.model).filter(self.model.user_id == user_id)
+            
+            if start_date:
+                query = query.filter(self.model.answered_at >= start_date)
+            if end_date:
+                query = query.filter(self.model.answered_at <= end_date)
+            
+            return (
+                query
+                .order_by(self.model.answered_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting answer records by date range for user {user_id}: {e}")
+            raise
+    
+    def get_with_details(
+        self, 
+        db: Session, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[tuple]:
+        """Get answer records with question, document, and knowledge base details"""
+        try:
+            return (
+                db.query(
+                    self.model,
+                    Question.question_text,
+                    Document.filename,
+                    KnowledgeBase.name.label('knowledge_base_name')
+                )
+                .select_from(self.model)
+                .join(Question, self.model.question_id == Question.id)
+                .join(Document, Question.document_id == Document.id)
+                .join(KnowledgeBase, Document.knowledge_base_id == KnowledgeBase.id)
+                .filter(self.model.user_id == user_id)
+                .order_by(self.model.answered_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting answer records with details for user {user_id}: {e}")
+            raise
+    
+    def get_statistics(self, db: Session, user_id: int) -> Dict[str, Any]:
+        """Get learning statistics for a user"""
+        try:
+            # Basic statistics
+            total_count = db.query(self.model).filter(self.model.user_id == user_id).count()
+            
+            if total_count == 0:
+                return {
+                    "total_questions_answered": 0,
+                    "average_score": 0.0,
+                    "scores_by_date": [],
+                    "knowledge_base_progress": []
+                }
+            
+            # Average score
+            avg_score_result = (
+                db.query(func.avg(self.model.score))
+                .filter(self.model.user_id == user_id, self.model.score.isnot(None))
+                .scalar()
+            )
+            avg_score = float(avg_score_result) if avg_score_result else 0.0
+            
+            # Scores by date (last 30 days)
+            from datetime import datetime, timedelta
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            
+            scores_by_date = (
+                db.query(
+                    func.date(self.model.answered_at).label('date'),
+                    func.avg(self.model.score).label('avg_score'),
+                    func.count(self.model.id).label('count')
+                )
+                .filter(
+                    self.model.user_id == user_id,
+                    self.model.answered_at >= thirty_days_ago,
+                    self.model.score.isnot(None)
+                )
+                .group_by(func.date(self.model.answered_at))
+                .order_by(func.date(self.model.answered_at))
+                .all()
+            )
+            
+            # Knowledge base progress
+            kb_progress = (
+                db.query(
+                    KnowledgeBase.name,
+                    func.count(self.model.id).label('total_answered'),
+                    func.avg(self.model.score).label('avg_score')
+                )
+                .join(Question)
+                .join(Document)
+                .join(KnowledgeBase)
+                .filter(self.model.user_id == user_id)
+                .group_by(KnowledgeBase.id, KnowledgeBase.name)
+                .all()
+            )
+            
+            return {
+                "total_questions_answered": total_count,
+                "average_score": round(avg_score, 2),
+                "scores_by_date": [
+                    {
+                        "date": str(row.date),
+                        "avg_score": round(float(row.avg_score), 2),
+                        "count": row.count
+                    }
+                    for row in scores_by_date
+                ],
+                "knowledge_base_progress": [
+                    {
+                        "knowledge_base_name": row.name,
+                        "total_answered": row.total_answered,
+                        "avg_score": round(float(row.avg_score), 2) if row.avg_score else 0.0
+                    }
+                    for row in kb_progress
+                ]
+            }
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting statistics for user {user_id}: {e}")
+            raise
+    
+    def search_records(
+        self,
+        db: Session,
+        user_id: int,
+        query: str = None,
+        knowledge_base_id: int = None,
+        document_id: int = None,
+        score_min: float = None,
+        score_max: float = None,
+        date_from: datetime = None,
+        date_to: datetime = None,
+        skip: int = 0,
+        limit: int = 100,
+        sort_by: str = "answered_at",
+        sort_order: str = "desc"
+    ) -> List[tuple]:
+        """Search answer records with filters"""
+        try:
+            # Base query with explicit joins
+            base_query = (
+                db.query(
+                    self.model,
+                    Question.question_text,
+                    Document.filename,
+                    KnowledgeBase.name.label('knowledge_base_name')
+                )
+                .select_from(self.model)
+                .join(Question, self.model.question_id == Question.id)
+                .join(Document, Question.document_id == Document.id)
+                .join(KnowledgeBase, Document.knowledge_base_id == KnowledgeBase.id)
+                .filter(self.model.user_id == user_id)
+            )
+            
+            # Apply filters
+            if query:
+                base_query = base_query.filter(
+                    Question.question_text.contains(query) |
+                    self.model.user_answer.contains(query) |
+                    self.model.feedback.contains(query)
+                )
+            
+            if knowledge_base_id:
+                base_query = base_query.filter(Document.knowledge_base_id == knowledge_base_id)
+            
+            if document_id:
+                base_query = base_query.filter(Question.document_id == document_id)
+            
+            if score_min is not None:
+                base_query = base_query.filter(self.model.score >= score_min)
+            
+            if score_max is not None:
+                base_query = base_query.filter(self.model.score <= score_max)
+            
+            if date_from:
+                base_query = base_query.filter(self.model.answered_at >= date_from)
+            
+            if date_to:
+                base_query = base_query.filter(self.model.answered_at <= date_to)
+            
+            # Apply sorting
+            sort_field = getattr(self.model, sort_by, self.model.answered_at)
+            if sort_order.lower() == "desc":
+                base_query = base_query.order_by(sort_field.desc())
+            else:
+                base_query = base_query.order_by(sort_field.asc())
+            
+            return base_query.offset(skip).limit(limit).all()
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error searching answer records for user {user_id}: {e}")
+            raise
+    
+    def bulk_delete(self, db: Session, user_id: int, record_ids: List[int]) -> int:
+        """Bulk delete answer records for a user"""
+        try:
+            deleted_count = (
+                db.query(self.model)
+                .filter(
+                    self.model.user_id == user_id,
+                    self.model.id.in_(record_ids)
+                )
+                .delete(synchronize_session=False)
+            )
+            db.commit()
+            return deleted_count
+        except SQLAlchemyError as e:
+            logger.error(f"Error bulk deleting answer records for user {user_id}: {e}")
+            db.rollback()
+            raise
+
+
+class CRUDReviewRecord(CRUDBase[ReviewRecord, None, None]):
+    """CRUD operations for ReviewRecord"""
+    
+    def get_by_user(
+        self, 
+        db: Session, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[ReviewRecord]:
+        """Get review records by user ID with pagination"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(self.model.user_id == user_id)
+                .order_by(self.model.next_review.asc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting review records for user {user_id}: {e}")
+            raise
+    
+    def get_due_reviews(
+        self, 
+        db: Session, 
+        user_id: int, 
+        limit: int = 50
+    ) -> List[ReviewRecord]:
+        """Get reviews that are due for a user"""
+        try:
+            from datetime import datetime
+            now = datetime.now()
+            
+            return (
+                db.query(self.model)
+                .filter(
+                    self.model.user_id == user_id,
+                    self.model.next_review <= now
+                )
+                .order_by(self.model.next_review.asc())
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting due reviews for user {user_id}: {e}")
+            raise
+    
+    def get_by_content(
+        self, 
+        db: Session, 
+        user_id: int,
+        content_id: int,
+        content_type: str
+    ) -> Optional[ReviewRecord]:
+        """Get review record by content ID and type"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(
+                    self.model.user_id == user_id,
+                    self.model.content_id == content_id,
+                    self.model.content_type == content_type
+                )
+                .first()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting review record for content {content_id}: {e}")
+            raise
+    
+    def update_review_schedule(
+        self,
+        db: Session,
+        review_record: ReviewRecord,
+        quality: int  # 0-5 quality rating
+    ) -> ReviewRecord:
+        """Update review schedule based on spaced repetition algorithm"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # Simple spaced repetition algorithm (similar to Anki)
+            if quality < 3:
+                # Reset if quality is poor
+                review_record.interval_days = 1
+                review_record.ease_factor = max(1.3, review_record.ease_factor - 0.2)
+            else:
+                # Increase interval based on ease factor
+                if review_record.review_count == 0:
+                    review_record.interval_days = 1
+                elif review_record.review_count == 1:
+                    review_record.interval_days = 6
+                else:
+                    review_record.interval_days = int(
+                        review_record.interval_days * review_record.ease_factor
+                    )
+                
+                # Adjust ease factor based on quality
+                review_record.ease_factor = max(
+                    1.3,
+                    review_record.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+                )
+            
+            # Update timestamps
+            review_record.last_reviewed = datetime.now()
+            review_record.next_review = datetime.now() + timedelta(days=review_record.interval_days)
+            review_record.review_count += 1
+            
+            db.commit()
+            db.refresh(review_record)
+            return review_record
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating review schedule: {e}")
+            db.rollback()
+            raise
+
+
 # Create instances
 knowledge_base_crud = CRUDKnowledgeBase(KnowledgeBase)
 document_crud = CRUDDocument(Document)
 question_crud = CRUDQuestion(Question)
+answer_record_crud = CRUDAnswerRecord(AnswerRecord)
+review_record_crud = CRUDReviewRecord(ReviewRecord)
