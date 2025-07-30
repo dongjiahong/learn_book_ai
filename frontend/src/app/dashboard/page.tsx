@@ -100,11 +100,6 @@ function DashboardContent() {
 
   return (
     <MainLayout>
-      <PageHeader
-        title={`欢迎回来，${user?.username}！`}
-        subtitle="今天也要努力学习哦 📚"
-      />
-
       <Container>
         {/* 统计卡片 */}
         <ResponsiveGrid className="mb-6">

@@ -22,12 +22,6 @@ export default function ReviewPage() {
   const [currentReview, setCurrentReview] = useState<DueReviewItem | null>(null);
   const [reviewMode, setReviewMode] = useState(false);
 
-  useEffect(() => {
-    if (tokens?.access_token) {
-      loadReviewData();
-    }
-  }, [loadReviewData, tokens]);
-
   const loadReviewData = async () => {
     if (!tokens?.access_token) return;
 
@@ -49,6 +43,13 @@ export default function ReviewPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (tokens?.access_token) {
+      loadReviewData();
+    }
+  }, [loadReviewData, tokens]);
+
 
   const startReviewSession = () => {
     if (dueReviews.length > 0) {
