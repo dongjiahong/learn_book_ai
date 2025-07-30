@@ -9,10 +9,10 @@ import logging
 import os
 from pathlib import Path
 
-from ..core.auth import get_current_user
+from ..core.middleware import get_current_user
 from ..models.database import get_db
 from ..models.crud import knowledge_base_crud, document_crud
-from ..schemas.auth import User
+from ..models.models import User
 from ..schemas.documents import (
     KnowledgeBaseCreate, KnowledgeBaseUpdate, KnowledgeBaseResponse,
     KnowledgeBaseDetailResponse, KnowledgeBaseListResponse,
@@ -499,8 +499,8 @@ async def get_document_content(
     except Exception as e:
         logger.error(f"Error getting content for document {document_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to get document content")
-@ro
-uter.post("/documents/{document_id}/process")
+
+@router.post("/documents/{document_id}/process")
 async def process_document(
     document_id: int,
     current_user: User = Depends(get_current_user),

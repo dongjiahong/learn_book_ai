@@ -8,9 +8,9 @@ import tempfile
 import os
 from pathlib import Path
 
-from ..core.auth import get_current_user
+from ..core.middleware import get_current_user
 from ..services.rag_service import rag_service
-from ..schemas.auth import User
+from ..models.models import User
 
 router = APIRouter(prefix="/api/rag", tags=["rag"])
 
