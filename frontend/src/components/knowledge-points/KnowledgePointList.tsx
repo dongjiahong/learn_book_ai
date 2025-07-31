@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   Button,
@@ -18,16 +18,13 @@ import {
   Row,
   Col,
   Statistic,
-  Spin,
   Empty,
 } from 'antd';
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
   ReloadOutlined,
-  ExportOutlined,
   ImportOutlined,
   FilterOutlined,
   EyeOutlined,
@@ -35,6 +32,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient, KnowledgePoint, KnowledgeBase, Document } from '@/lib/api';
+import KnowledgePointForm from './KnowledgePointForm';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -62,13 +60,17 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   showActions = true,
   height,
 }) => {
-  const { token } = useAuthStore();
+  const { tokens } = useAuthStore();
+  const token = tokens?.access_token;
   const [knowledgePoints, setKnowledgePoints] = useState<KnowledgePoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [statistics, setStatistics] = useState<unknown>(null);
+  const [statistics, setStatistics] = useState<{
+    total_knowledge_points: number;
+    by_importance_level: Record<string, number>;
+  } | null>(null);
   
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
@@ -87,21 +89,8 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState<KnowledgePoint | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [createModalVisible, setCreateModalVisible] = useState(false);
 
-  useEffect(() => {
-    loadKnowledgePoints();
-    loadKnowledgeBases();
-    loadStatistics();
-  }, [filters, pagination.current, pagination.pageSize]);
-
-  useEffect(() => {
-    if (filters.knowledgeBaseId) {
-      loadDocuments(filters.knowledgeBaseId);
-    }
-  }, [filters.knowledgeBaseId]);
-
-  const loadKnowledgePoints = async () => {
+  const loadKnowledgePoints = useCallback(async () => {
     if (!token) return;
 
     setLoading(true);
@@ -126,9 +115,9 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, filters.documentId, filters.knowledgeBaseId, filters.importanceLevel, filters.searchQuery, pagination.current, pagination.pageSize]);
 
-  const loadKnowledgeBases = async () => {
+  const loadKnowledgeBases = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -137,9 +126,9 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     } catch (error) {
       console.error('Failed to load knowledge bases:', error);
     }
-  };
+  }, [token]);
 
-  const loadDocuments = async (kbId: number) => {
+  const loadDocuments = useCallback(async (kbId: number) => {
     if (!token) return;
 
     try {
@@ -148,9 +137,9 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     } catch (error) {
       console.error('Failed to load documents:', error);
     }
-  };
+  }, [token]);
 
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -162,7 +151,19 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     } catch (error) {
       console.error('Failed to load statistics:', error);
     }
-  };
+  }, [token, filters.knowledgeBaseId]);
+
+  useEffect(() => {
+    loadKnowledgePoints();
+    loadKnowledgeBases();
+    loadStatistics();
+  }, [loadKnowledgePoints, loadKnowledgeBases, loadStatistics]);
+
+  useEffect(() => {
+    if (filters.knowledgeBaseId) {
+      loadDocuments(filters.knowledgeBaseId);
+    }
+  }, [filters.knowledgeBaseId, loadDocuments]);
 
   const handleDelete = async (id: number) => {
     if (!token) return;
@@ -586,6 +587,19 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
           </div>
         )}
       </Modal>
+
+      {/* Edit Modal */}
+      {selectedKnowledgePoint && (
+        <KnowledgePointForm
+          visible={editModalVisible}
+          onCancel={() => setEditModalVisible(false)}
+          onSuccess={() => {
+            loadKnowledgePoints();
+            loadStatistics();
+          }}
+          knowledgePoint={selectedKnowledgePoint}
+        />
+      )}
     </div>
   );
 };

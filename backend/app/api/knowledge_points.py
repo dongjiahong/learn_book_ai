@@ -188,45 +188,7 @@ async def delete_knowledge_point(
         raise HTTPException(status_code=500, detail=f"Failed to delete knowledge point: {str(e)}")
 
 
-@router.post("/")
-async def create_knowledge_point(
-    document_id: int,
-    title: str,
-    content: str,
-    importance_level: int = 1,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """Create a new knowledge point manually"""
-    try:
-        # Validate inputs
-        if not title.strip():
-            raise HTTPException(status_code=400, detail="Title cannot be empty")
-        if not content.strip():
-            raise HTTPException(status_code=400, detail="Content cannot be empty")
-        if importance_level < 1 or importance_level > 5:
-            raise HTTPException(status_code=400, detail="Importance level must be between 1 and 5")
-        
-        knowledge_point = knowledge_point_service.create_knowledge_point(
-            db=db,
-            document_id=document_id,
-            title=title,
-            content=content,
-            importance_level=importance_level
-        )
-        
-        return {
-            "success": True,
-            "knowledge_point": knowledge_point,
-            "message": "Knowledge point created successfully"
-        }
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create knowledge point: {str(e)}")
+
 
 
 @router.post("/search")

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Tabs,
@@ -10,36 +10,56 @@ import {
   Space,
   Button,
   Modal,
+  Select,
+  message,
 } from 'antd';
 import {
   BookOutlined,
   SearchOutlined,
   BarChartOutlined,
-  PlusOutlined,
 } from '@ant-design/icons';
+import { useAuthStore } from '@/stores/authStore';
+import { apiClient, KnowledgeBase } from '@/lib/api';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ResponsiveLayout } from '@/components/layout/ResponsiveLayout';
 import KnowledgePointList from '@/components/knowledge-points/KnowledgePointList';
 import KnowledgePointSearch from '@/components/knowledge-points/KnowledgePointSearch';
-import KnowledgePointForm from '@/components/knowledge-points/KnowledgePointForm';
+
 
 const { Title, Paragraph } = Typography;
+const { Option } = Select;
 
 const KnowledgePointsPage: React.FC = () => {
+  const { tokens } = useAuthStore();
+  const token = tokens?.access_token;
   const [activeTab, setActiveTab] = useState('list');
-  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [selectedKnowledgePointId, setSelectedKnowledgePointId] = useState<number | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<number | undefined>();
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+
+  useEffect(() => {
+    const loadKnowledgeBases = async () => {
+      if (!token) return;
+
+      try {
+        const response = await apiClient.getKnowledgeBases(token, 0, 100);
+        setKnowledgeBases(response.knowledge_bases);
+      } catch (error) {
+        console.error('Failed to load knowledge bases:', error);
+        message.error('加载知识库失败');
+      }
+    };
+
+    loadKnowledgeBases();
+  }, [token]);
 
   const handleKnowledgePointSelect = (kpId: number) => {
     setSelectedKnowledgePointId(kpId);
     setDetailModalVisible(true);
   };
 
-  const handleCreateSuccess = () => {
-    // Refresh the list by switching tabs or triggering a refresh
-    setActiveTab('list');
-  };
+
 
   return (
     <ProtectedRoute>
@@ -47,13 +67,34 @@ const KnowledgePointsPage: React.FC = () => {
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <Title level={2}>
-              <BookOutlined style={{ marginRight: 8 }} />
-              知识点管理
-            </Title>
-            <Paragraph type="secondary">
-              管理和组织从文档中提取的知识点，支持自动提取、手动编辑和智能搜索
-            </Paragraph>
+            <Row justify="space-between" align="middle">
+              <Col>
+                <Title level={2} style={{ margin: 0 }}>
+                  <BookOutlined style={{ marginRight: 8 }} />
+                  知识点管理
+                </Title>
+                <Paragraph type="secondary" style={{ margin: '8px 0 0 0' }}>
+                  管理和组织从文档中提取的知识点，支持自动提取、手动编辑和智能搜索
+                </Paragraph>
+              </Col>
+              <Col>
+                <Space>
+                  <Select
+                    placeholder="选择知识库"
+                    value={selectedKnowledgeBaseId}
+                    onChange={setSelectedKnowledgeBaseId}
+                    allowClear
+                    style={{ width: 200 }}
+                  >
+                    {knowledgeBases.map(kb => (
+                      <Option key={kb.id} value={kb.id}>
+                        {kb.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Space>
+              </Col>
+            </Row>
           </div>
 
           {/* Main Content */}
@@ -61,17 +102,6 @@ const KnowledgePointsPage: React.FC = () => {
               <Tabs
                 activeKey={activeTab}
                 onChange={setActiveTab}
-                tabBarExtraContent={
-                  <Space>
-                    <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      onClick={() => setCreateModalVisible(true)}
-                    >
-                      新建知识点
-                    </Button>
-                  </Space>
-                }
                 items={[
                   {
                     key: "list",
@@ -131,13 +161,7 @@ const KnowledgePointsPage: React.FC = () => {
               />
             </Card>
 
-            {/* Create Knowledge Point Modal */}
-            <KnowledgePointForm
-              visible={createModalVisible}
-              onCancel={() => setCreateModalVisible(false)}
-              onSuccess={handleCreateSuccess}
-              mode="create"
-            />
+
 
             {/* Knowledge Point Detail Modal */}
             <Modal

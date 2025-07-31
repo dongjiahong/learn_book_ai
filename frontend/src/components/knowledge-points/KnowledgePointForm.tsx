@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   Form,
@@ -25,10 +25,7 @@ interface KnowledgePointFormProps {
   visible: boolean;
   onCancel: () => void;
   onSuccess: () => void;
-  knowledgePoint?: KnowledgePoint | null;
-  documentId?: number;
-  knowledgeBaseId?: number;
-  mode: 'create' | 'edit';
+  knowledgePoint: KnowledgePoint;
 }
 
 interface FormValues {
@@ -43,46 +40,16 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
   onCancel,
   onSuccess,
   knowledgePoint,
-  documentId,
-  knowledgeBaseId,
-  mode,
 }) => {
-  const { token } = useAuthStore();
+  const { tokens } = useAuthStore();
+  const token = tokens?.access_token;
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<number | undefined>(
-    knowledgeBaseId
-  );
+  const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<number | undefined>();
 
-  useEffect(() => {
-    if (visible) {
-      loadKnowledgeBases();
-      if (mode === 'edit' && knowledgePoint) {
-        form.setFieldsValue({
-          document_id: knowledgePoint.document_id,
-          title: knowledgePoint.title,
-          content: knowledgePoint.content,
-          importance_level: knowledgePoint.importance_level,
-        });
-        // Load documents for the knowledge point's document
-        loadDocumentInfo(knowledgePoint.document_id);
-      } else if (mode === 'create') {
-        form.setFieldsValue({
-          document_id: documentId,
-          title: '',
-          content: '',
-          importance_level: 3,
-        });
-        if (knowledgeBaseId) {
-          loadDocuments(knowledgeBaseId);
-        }
-      }
-    }
-  }, [visible, mode, knowledgePoint, documentId, knowledgeBaseId]);
-
-  const loadKnowledgeBases = async () => {
+  const loadKnowledgeBases = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -92,9 +59,9 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
       console.error('Failed to load knowledge bases:', error);
       message.error('加载知识库失败');
     }
-  };
+  }, [token]);
 
-  const loadDocuments = async (kbId: number) => {
+  const loadDocuments = useCallback(async (kbId: number) => {
     if (!token) return;
 
     try {
@@ -104,9 +71,9 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
       console.error('Failed to load documents:', error);
       message.error('加载文档失败');
     }
-  };
+  }, [token]);
 
-  const loadDocumentInfo = async (docId: number) => {
+  const loadDocumentInfo = useCallback(async (docId: number) => {
     if (!token) return;
 
     try {
@@ -126,7 +93,21 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
     } catch (error) {
       console.error('Failed to load document info:', error);
     }
-  };
+  }, [token, loadDocuments]);
+
+  useEffect(() => {
+    if (visible && knowledgePoint) {
+      loadKnowledgeBases();
+      form.setFieldsValue({
+        document_id: knowledgePoint.document_id,
+        title: knowledgePoint.title,
+        content: knowledgePoint.content,
+        importance_level: knowledgePoint.importance_level,
+      });
+      // Load documents for the knowledge point's document
+      loadDocumentInfo(knowledgePoint.document_id);
+    }
+  }, [visible, knowledgePoint, form, loadKnowledgeBases, loadDocuments, loadDocumentInfo]);
 
   const handleKnowledgeBaseChange = (kbId: number) => {
     setSelectedKnowledgeBaseId(kbId);
@@ -136,29 +117,24 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
   };
 
   const handleSubmit = async (values: FormValues) => {
-    if (!token) return;
+    if (!token || !knowledgePoint) return;
 
     setLoading(true);
     try {
-      if (mode === 'create') {
-        await apiClient.createKnowledgePoint(token, values);
-        message.success('知识点创建成功');
-      } else if (mode === 'edit' && knowledgePoint) {
-        const updateData = {
-          title: values.title,
-          content: values.content,
-          importance_level: values.importance_level,
-        };
-        await apiClient.updateKnowledgePoint(token, knowledgePoint.id, updateData);
-        message.success('知识点更新成功');
-      }
+      const updateData = {
+        title: values.title,
+        content: values.content,
+        importance_level: values.importance_level,
+      };
+      await apiClient.updateKnowledgePoint(token, knowledgePoint.id, updateData);
+      message.success('知识点更新成功');
       
       form.resetFields();
       onSuccess();
       onCancel();
     } catch (error) {
-      console.error('Failed to save knowledge point:', error);
-      message.error(mode === 'create' ? '创建知识点失败' : '更新知识点失败');
+      console.error('Failed to update knowledge point:', error);
+      message.error('更新知识点失败');
     } finally {
       setLoading(false);
     }
@@ -169,20 +145,11 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
     onCancel();
   };
 
-  const getImportanceText = (level: number) => {
-    const texts = {
-      1: '一般',
-      2: '较低',
-      3: '中等',
-      4: '重要',
-      5: '非常重要',
-    };
-    return texts[level as keyof typeof texts] || '未知';
-  };
+
 
   return (
     <Modal
-      title={mode === 'create' ? '新建知识点' : '编辑知识点'}
+      title="编辑知识点"
       open={visible}
       onCancel={handleCancel}
       width={800}
@@ -200,14 +167,12 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
           <Col span={12}>
             <Form.Item
               label="知识库"
-              name="knowledge_base_selector"
-              rules={[{ required: true, message: '请选择知识库' }]}
             >
               <Select
                 placeholder="选择知识库"
                 value={selectedKnowledgeBaseId}
                 onChange={handleKnowledgeBaseChange}
-                disabled={mode === 'edit'}
+                disabled={true}
               >
                 {knowledgeBases.map(kb => (
                   <Option key={kb.id} value={kb.id}>
@@ -225,7 +190,7 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
             >
               <Select
                 placeholder="选择文档"
-                disabled={!selectedKnowledgeBaseId || mode === 'edit'}
+                disabled={true}
               >
                 {documents.map(doc => (
                   <Option key={doc.id} value={doc.id}>
@@ -313,7 +278,7 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
               取消
             </Button>
             <Button type="primary" htmlType="submit" loading={loading}>
-              {mode === 'create' ? '创建' : '更新'}
+              更新
             </Button>
           </Space>
         </Form.Item>
@@ -321,12 +286,12 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
 
       {/* Help Information */}
       <Card size="small" style={{ marginTop: 16, backgroundColor: '#f6f8fa' }}>
-        <Title level={5}>填写提示</Title>
+        <Title level={5}>编辑提示</Title>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li>标题应该简洁明确，概括知识点的核心内容</li>
           <li>内容应该详细完整，包含必要的解释和说明</li>
           <li>重要性级别用于学习优先级排序和复习安排</li>
-          <li>高重要性的知识点会在学习系统中获得更多关注</li>
+          <li>知识点来源文档不可修改，如需更改请重新从文档提取</li>
         </ul>
       </Card>
     </Modal>

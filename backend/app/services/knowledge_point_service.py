@@ -325,57 +325,7 @@ class KnowledgePointService:
             db.rollback()
             raise
     
-    def create_knowledge_point(
-        self,
-        db: Session,
-        document_id: int,
-        title: str,
-        content: str,
-        importance_level: int = 1
-    ) -> Dict[str, Any]:
-        """
-        Create a new knowledge point manually
-        
-        Args:
-            db: Database session
-            document_id: ID of the source document
-            title: Knowledge point title
-            content: Knowledge point content
-            importance_level: Importance level (1-5)
-            
-        Returns:
-            Created knowledge point
-        """
-        try:
-            # Validate document exists
-            document = db.query(Document).filter(Document.id == document_id).first()
-            if not document:
-                raise ValueError(f"Document with ID {document_id} not found")
-            
-            # Create knowledge point
-            kp = KnowledgePoint(
-                document_id=document_id,
-                title=title.strip(),
-                content=content.strip(),
-                importance_level=max(1, min(5, importance_level))
-            )
-            
-            db.add(kp)
-            db.commit()
-            db.refresh(kp)
-            
-            # Add to vector store
-            kp_dict = self._knowledge_point_to_dict(kp)
-            self._get_vector_store().add_knowledge_points([kp_dict])
-            
-            logger.info(f"Created knowledge point {kp.id} for document {document_id}")
-            return kp_dict
-            
-        except Exception as e:
-            logger.error(f"Failed to create knowledge point: {e}")
-            db.rollback()
-            raise
-    
+
     def search_knowledge_points(
         self,
         query: str,

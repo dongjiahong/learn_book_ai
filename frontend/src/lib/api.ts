@@ -329,12 +329,6 @@ export interface KnowledgePoint {
   created_at: string;
 }
 
-export interface KnowledgePointCreate {
-  document_id: number;
-  title: string;
-  content: string;
-  importance_level?: number;
-}
 
 export interface KnowledgePointUpdate {
   title?: string;
@@ -1215,15 +1209,6 @@ class ApiClient {
     return this.authenticatedRequest(`/api/knowledge-points/${kpId}`, token);
   }
 
-  async createKnowledgePoint(
-    token: string,
-    data: KnowledgePointCreate
-  ): Promise<{ success: boolean; knowledge_point: KnowledgePoint; message: string }> {
-    return this.authenticatedRequest('/api/knowledge-points', token, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
 
   async updateKnowledgePoint(
     token: string,
