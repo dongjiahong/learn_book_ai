@@ -17,24 +17,30 @@ router = APIRouter(prefix="/api/knowledge-points", tags=["knowledge-points"])
 @router.post("/extract/document/{document_id}")
 async def extract_knowledge_points_from_document(
     document_id: int,
-    force_regenerate: bool = False,
+    target_count: Optional[int] = Query(None, ge=1, le=100, description="Target number of knowledge points to extract"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """Extract knowledge points from a specific document"""
     try:
-        knowledge_points = await knowledge_point_service.extract_knowledge_points_from_document(
+        result = await knowledge_point_service.extract_knowledge_points_from_document(
             db=db,
             document_id=document_id,
-            force_regenerate=force_regenerate
+            target_count=target_count
         )
         
-        return {
-            "success": True,
-            "document_id": document_id,
-            "knowledge_points": knowledge_points,
-            "count": len(knowledge_points)
-        }
+        # Handle both old and new return formats
+        if isinstance(result, dict) and "knowledge_points" in result:
+            return result
+        else:
+            # Legacy format - convert to new format
+            return {
+                "success": True,
+                "document_id": document_id,
+                "knowledge_points": result,
+                "count": len(result),
+                "message": f"成功提取了 {len(result)} 个知识点"
+            }
         
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -45,7 +51,7 @@ async def extract_knowledge_points_from_document(
 @router.post("/extract/knowledge-base/{knowledge_base_id}")
 async def extract_knowledge_points_from_knowledge_base(
     knowledge_base_id: int,
-    force_regenerate: bool = False,
+    target_count_per_document: Optional[int] = Query(None, ge=1, le=100, description="Target number of knowledge points per document"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -54,7 +60,7 @@ async def extract_knowledge_points_from_knowledge_base(
         result = await knowledge_point_service.extract_knowledge_points_from_knowledge_base(
             db=db,
             knowledge_base_id=knowledge_base_id,
-            force_regenerate=force_regenerate
+            target_count_per_document=target_count_per_document
         )
         
         return result
@@ -270,17 +276,22 @@ async def batch_extract_knowledge_points(
         
         for document_id in document_ids:
             try:
-                kps = await knowledge_point_service.extract_knowledge_points_from_document(
+                result = await knowledge_point_service.extract_knowledge_points_from_document(
                     db=db,
-                    document_id=document_id,
-                    force_regenerate=force_regenerate
+                    document_id=document_id
                 )
+                # Handle both old and new return formats
+                if isinstance(result, dict) and "knowledge_points" in result:
+                    kp_count = result["count"]
+                else:
+                    kp_count = len(result)
+                
                 results.append({
                     "document_id": document_id,
-                    "knowledge_points_count": len(kps),
+                    "knowledge_points_count": kp_count,
                     "success": True
                 })
-                total_kps += len(kps)
+                total_kps += kp_count
             except Exception as e:
                 errors.append({
                     "document_id": document_id,

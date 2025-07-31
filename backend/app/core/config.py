@@ -154,6 +154,14 @@ class Config:
         return self.get("vector_store", "persist_directory", "./chroma_db")
     
     @property
+    def vector_store_host(self) -> str:
+        return self.get("vector_store", "host", "localhost")
+    
+    @property
+    def vector_store_port(self) -> int:
+        return self.get("vector_store", "port", 8000)
+    
+    @property
     def vector_store_collection_name(self) -> str:
         return self.get("vector_store", "collection_name", "learning_materials")
     

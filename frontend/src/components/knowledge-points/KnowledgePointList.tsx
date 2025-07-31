@@ -8,8 +8,6 @@ import {
   Tag,
   Modal,
   message,
-  Input,
-  Select,
   Card,
   Typography,
   Tooltip,
@@ -27,17 +25,17 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useAuthStore } from '@/stores/authStore';
-import { apiClient, KnowledgePoint, KnowledgeBase, Document } from '@/lib/api';
+import { apiClient, KnowledgePoint, KnowledgeBase } from '@/lib/api';
 import KnowledgePointForm from './KnowledgePointForm';
 
 const { Title, Text, Paragraph } = Typography;
-const { Option } = Select;
 
 interface KnowledgePointListProps {
   knowledgeBaseId?: number;
   documentId?: number;
   showActions?: boolean;
   height?: number;
+  refreshTrigger?: number;
 }
 
 interface FilterState {
@@ -52,13 +50,14 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   documentId,
   showActions = true,
   height,
+  refreshTrigger,
 }) => {
   const { tokens } = useAuthStore();
   const token = tokens?.access_token;
   const [knowledgePoints, setKnowledgePoints] = useState<KnowledgePoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [statistics, setStatistics] = useState<{
     total_knowledge_points: number;
     by_importance_level: Record<string, number>;
@@ -139,6 +138,14 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     loadKnowledgeBases();
     loadStatistics();
   }, [loadKnowledgePoints, loadKnowledgeBases, loadStatistics]);
+
+  // Refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadKnowledgePoints();
+      loadStatistics();
+    }
+  }, [refreshTrigger, loadKnowledgePoints, loadStatistics]);
 
   const handleDelete = async (id: number) => {
     if (!token) return;

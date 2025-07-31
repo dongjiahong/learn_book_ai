@@ -358,6 +358,9 @@ export interface KnowledgePointExtractionResponse {
   document_id?: number;
   knowledge_points: KnowledgePoint[];
   count: number;
+  message?: string;
+  total_requested?: number;
+  extraction_stages?: number;
 }
 
 export interface KnowledgePointSearchResponse {
@@ -1152,10 +1155,15 @@ class ApiClient {
   async extractKnowledgePointsFromDocument(
     token: string,
     documentId: number,
-    forceRegenerate: boolean = false
+    targetCount?: number
   ): Promise<KnowledgePointExtractionResponse> {
+    const params = new URLSearchParams();
+    if (targetCount !== undefined) {
+      params.append('target_count', targetCount.toString());
+    }
+    
     return this.authenticatedRequest(
-      `/api/knowledge-points/extract/document/${documentId}?force_regenerate=${forceRegenerate}`,
+      `/api/knowledge-points/extract/document/${documentId}?${params.toString()}`,
       token,
       { method: 'POST' }
     );
@@ -1164,7 +1172,7 @@ class ApiClient {
   async extractKnowledgePointsFromKnowledgeBase(
     token: string,
     knowledgeBaseId: number,
-    forceRegenerate: boolean = false
+    targetCountPerDocument?: number
   ): Promise<{
     success: boolean;
     total_documents: number;
@@ -1172,8 +1180,13 @@ class ApiClient {
     total_knowledge_points: number;
     errors: string[];
   }> {
+    const params = new URLSearchParams();
+    if (targetCountPerDocument !== undefined) {
+      params.append('target_count_per_document', targetCountPerDocument.toString());
+    }
+    
     return this.authenticatedRequest(
-      `/api/knowledge-points/extract/knowledge-base/${knowledgeBaseId}?force_regenerate=${forceRegenerate}`,
+      `/api/knowledge-points/extract/knowledge-base/${knowledgeBaseId}?${params.toString()}`,
       token,
       { method: 'POST' }
     );

@@ -33,7 +33,8 @@ batch_size = 32
 
 [vector_store]
 provider = "chroma"
-persist_directory = "./chroma_db"
+host = "localhost"
+port = 8000
 collection_name = "learning_materials"
 
 [anki]

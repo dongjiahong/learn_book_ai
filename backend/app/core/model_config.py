@@ -233,7 +233,10 @@ class OllamaClient(BaseModelClient):
                 prompt=prompt,
                 options={
                     'temperature': kwargs.get('temperature', self.config.ollama.temperature),
-                    'num_predict': kwargs.get('max_tokens', self.config.ollama.max_tokens)
+                    'num_predict': kwargs.get('max_tokens', self.config.ollama.max_tokens),
+                    'repeat_penalty': 1.1,
+                    'top_k': 40,
+                    'top_p': 0.9
                 }
             )
             return response['response']

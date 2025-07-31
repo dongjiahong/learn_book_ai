@@ -40,6 +40,7 @@ const KnowledgePointsPage: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<number | undefined>();
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // 搜索和提取相关状态
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,6 +49,7 @@ const KnowledgePointsPage: React.FC = () => {
   const [extractKnowledgeBaseId, setExtractKnowledgeBaseId] = useState<number | undefined>();
   const [extractDocumentId, setExtractDocumentId] = useState<number | undefined>();
   const [extractDocuments, setExtractDocuments] = useState<Document[]>([]);
+  const [targetCount, setTargetCount] = useState<number | undefined>();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -76,6 +78,7 @@ const KnowledgePointsPage: React.FC = () => {
     setExtractKnowledgeBaseId(undefined);
     setExtractDocumentId(undefined);
     setExtractDocuments([]);
+    setTargetCount(undefined);
     setExtractModalVisible(true);
   };
 
@@ -99,12 +102,24 @@ const KnowledgePointsPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await apiClient.extractKnowledgePointsFromDocument(token, docId, false);
-      message.success(`成功提取 ${response.count} 个知识点`);
+      const response = await apiClient.extractKnowledgePointsFromDocument(token, docId, targetCount);
+      
+      // Show detailed success message
+      const successMessage = response.message || `成功提取 ${response.count} 个知识点`;
+      message.success(successMessage, 4); // Show for 4 seconds
+      
+      // Show additional info if staged extraction was used
+      if (response.extraction_stages && response.extraction_stages > 1) {
+        message.info(`采用分阶段提取，共${response.extraction_stages}个阶段完成`, 3);
+      }
+      
       setExtractModalVisible(false);
+      
+      // Trigger refresh of the knowledge points list
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Failed to extract knowledge points:', error);
-      message.error('提取知识点失败');
+      message.error('提取知识点失败，请检查文档内容或稍后重试');
     } finally {
       setLoading(false);
     }
@@ -115,12 +130,27 @@ const KnowledgePointsPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await apiClient.extractKnowledgePointsFromKnowledgeBase(token, kbId, false);
-      message.success(`成功处理 ${response.processed_documents} 个文档，提取 ${response.total_knowledge_points} 个知识点`);
+      const response = await apiClient.extractKnowledgePointsFromKnowledgeBase(token, kbId, targetCount);
+      
+      // Show detailed success message
+      let successMessage = `批量提取完成！成功处理 ${response.processed_documents} 个文档，提取 ${response.total_knowledge_points} 个知识点`;
+      if (targetCount) {
+        successMessage += `（每个文档目标：${targetCount}个）`;
+      }
+      message.success(successMessage, 5); // Show for 5 seconds
+      
+      // Show errors if any
+      if (response.errors && response.errors.length > 0) {
+        message.warning(`部分文档处理失败：${response.errors.length} 个错误`, 3);
+      }
+      
       setExtractModalVisible(false);
+      
+      // Trigger refresh of the knowledge points list
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Failed to extract knowledge points:', error);
-      message.error('批量提取知识点失败');
+      message.error('批量提取知识点失败，请检查网络连接或稍后重试');
     } finally {
       setLoading(false);
     }
@@ -248,6 +278,8 @@ const KnowledgePointsPage: React.FC = () => {
                 <KnowledgePointList
                   showActions={true}
                   height={600}
+                  refreshTrigger={refreshTrigger}
+                  knowledgeBaseId={selectedKnowledgeBaseId}
                 />
               )}
               {activeTab === 'search' && (
@@ -346,11 +378,37 @@ const KnowledgePointsPage: React.FC = () => {
                   </div>
                 )}
 
+                <div>
+                  <Text strong>
+                    {extractType === 'document' ? '目标知识点数量：' : '每个文档的目标知识点数量：'}
+                  </Text>
+                  <Input
+                    type="number"
+                    placeholder={extractType === 'document' ? '留空使用默认数量(3-8个)' : '留空使用默认数量(3-8个)'}
+                    value={targetCount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setTargetCount(value ? parseInt(value) : undefined);
+                    }}
+                    min={1}
+                    max={100}
+                    style={{ width: '100%', marginTop: 8 }}
+                  />
+                  <Text type="secondary" style={{ fontSize: '12px', marginTop: 4, display: 'block' }}>
+                    {targetCount && targetCount > 15 
+                      ? `大于15个知识点将分阶段提取，预计需要${Math.ceil(targetCount / 15)}个阶段`
+                      : '建议范围：1-100个知识点'
+                    }
+                  </Text>
+                </div>
+
+
+
                 <div style={{ padding: '16px', backgroundColor: '#f6f8fa', borderRadius: '6px' }}>
                   <Text type="secondary">
                     {extractType === 'document' 
-                      ? '将从选定的文档中自动提取知识点，包括重要概念、定义、步骤等内容。'
-                      : '将从选定知识库中的所有文档批量提取知识点，这可能需要较长时间。'
+                      ? '将从选定的文档中增量提取知识点，新提取的知识点会添加到现有知识点中，不会删除已有内容。'
+                      : '将从选定知识库中的所有文档增量提取知识点，新提取的知识点会添加到现有知识点中，不会删除已有内容。'
                     }
                   </Text>
                 </div>

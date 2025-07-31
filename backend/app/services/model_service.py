@@ -146,59 +146,178 @@ class ModelService:
             logger.error(f"Answer evaluation failed: {e}")
             raise
     
-    async def extract_knowledge_points(self, content: str) -> list[Dict[str, Any]]:
+    async def extract_knowledge_points(self, content: str, target_count: Optional[int] = None) -> list[Dict[str, Any]]:
         """Extract key knowledge points from content"""
-        prompt = f"""
-从以下内容中提取关键知识点。每个知识点应该包含：
-1. 标题（简洁明确）
-2. 内容（详细说明）
-3. 重要性级别（1-5，5最重要）
+        
+        # If no target count specified, use default behavior
+        if target_count is None:
+            return await self._extract_knowledge_points_default(content)
+        
+        # For large target counts, use staged extraction
+        if target_count > 15:
+            return await self._extract_knowledge_points_staged(content, target_count)
+        else:
+            return await self._extract_knowledge_points_single(content, target_count)
+    
+    async def _extract_knowledge_points_default(self, content: str) -> list[Dict[str, Any]]:
+        """Default knowledge point extraction (3-8 points)"""
+        prompt = f"""请从以下内容中提取关键知识点。
 
 内容：
 {content}
 
-请按以下格式输出：
-标题：[知识点标题]
-内容：[详细内容]
-重要性：[1-5]
+要求：
+1. 提取3-8个最重要的知识点，确保覆盖内容的核心概念
+2. 每个知识点包含标题、详细内容说明、重要性级别(1-5)
+3. 内容说明要丰富详细，包括：
+   - 概念的定义和解释
+   - 相关的背景信息
+   - 实际应用场景或例子
+   - 与其他概念的关联
+   - 学习要点和注意事项
+4. 直接输出结果，不要包含思考过程或<think>标签
+5. 严格按照以下格式输出：
+
+标题：知识点的简洁标题
+内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整。
+重要性：3
 ---
-"""
+标题：另一个知识点标题
+内容：另一个知识点的详细说明，同样要求内容丰富完整，包含多个方面的信息。
+重要性：4
+---
+
+请直接开始提取，确保每个知识点的内容都足够丰富详细："""
         
+        return await self._parse_knowledge_points_response(prompt)
+    
+    async def _extract_knowledge_points_single(self, content: str, target_count: int) -> list[Dict[str, Any]]:
+        """Extract specified number of knowledge points in single request"""
+        prompt = f"""请从以下内容中提取关键知识点。
+
+内容：
+{content}
+
+要求：
+1. 提取恰好{target_count}个知识点，确保覆盖内容的核心概念
+2. 每个知识点包含标题、详细内容说明、重要性级别(1-5)
+3. 内容说明要丰富详细，包括：
+   - 概念的定义和解释
+   - 相关的背景信息
+   - 实际应用场景或例子
+   - 与其他概念的关联
+   - 学习要点和注意事项
+4. 直接输出结果，不要包含思考过程或<think>标签
+5. 严格按照以下格式输出：
+
+标题：知识点的简洁标题
+内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整。
+重要性：3
+---
+
+请提取恰好{target_count}个知识点，确保每个知识点的内容都足够丰富详细："""
+        
+        return await self._parse_knowledge_points_response(prompt)
+    
+    async def _extract_knowledge_points_staged(self, content: str, target_count: int) -> list[Dict[str, Any]]:
+        """Extract knowledge points in multiple stages to handle large counts"""
+        all_knowledge_points = []
+        
+        # Calculate how many stages we need (max 15 points per stage)
+        points_per_stage = 15
+        stages = (target_count + points_per_stage - 1) // points_per_stage
+        
+        logger.info(f"Extracting {target_count} knowledge points in {stages} stages")
+        
+        for stage in range(stages):
+            # Calculate how many points to extract in this stage
+            remaining_points = target_count - len(all_knowledge_points)
+            current_stage_count = min(points_per_stage, remaining_points)
+            
+            if current_stage_count <= 0:
+                break
+            
+            # Create prompt for this stage
+            stage_prompt = f"""请从以下内容中提取关键知识点。
+
+内容：
+{content}
+
+要求：
+1. 这是第{stage + 1}阶段提取，请提取{current_stage_count}个知识点
+2. 重点关注内容的不同方面，避免与之前提取的知识点重复
+3. 每个知识点包含标题、详细内容说明、重要性级别(1-5)
+4. 内容说明要丰富详细，包括：
+   - 概念的定义和解释
+   - 相关的背景信息
+   - 实际应用场景或例子
+   - 与其他概念的关联
+   - 学习要点和注意事项
+5. 直接输出结果，不要包含思考过程或<think>标签
+6. 严格按照以下格式输出：
+
+标题：知识点的简洁标题
+内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整。
+重要性：3
+---
+
+请提取{current_stage_count}个知识点："""
+            
+            try:
+                stage_points = await self._parse_knowledge_points_response(stage_prompt)
+                all_knowledge_points.extend(stage_points)
+                
+                logger.info(f"Stage {stage + 1} completed: extracted {len(stage_points)} points")
+                
+                # If we have enough points, break early
+                if len(all_knowledge_points) >= target_count:
+                    break
+                    
+            except Exception as e:
+                logger.error(f"Stage {stage + 1} failed: {e}")
+                # Continue with next stage even if one fails
+                continue
+        
+        # Trim to exact target count if we extracted too many
+        if len(all_knowledge_points) > target_count:
+            all_knowledge_points = all_knowledge_points[:target_count]
+        
+        logger.info(f"Staged extraction completed: {len(all_knowledge_points)} points extracted")
+        return all_knowledge_points
+    
+    async def _parse_knowledge_points_response(self, prompt: str) -> list[Dict[str, Any]]:
+        """Parse knowledge points from model response"""
         try:
             response = await self.generate_text(prompt, temperature=0.5)
             
-            # Parse knowledge points
-            knowledge_points = []
-            sections = response.strip().split('---')
+            # Remove <think> tags if present
+            if '<think>' in response:
+                think_end = response.find('</think>')
+                if think_end != -1:
+                    response = response[think_end + 8:].strip()
             
-            for section in sections:
-                section = section.strip()
-                if not section:
-                    continue
+            # Parse knowledge points using regex
+            knowledge_points = []
+            
+            # Use regex to match knowledge points
+            import re
+            pattern = r'标题：([^\n]+)\s*\n内容：(.*?)\s*重要性：(\d+)'
+            matches = re.findall(pattern, response, re.DOTALL)
+            
+            for title, content, importance in matches:
+                title = title.strip()
+                content = content.strip()
+                try:
+                    importance_level = int(importance)
+                except ValueError:
+                    importance_level = 1
                 
-                title = ""
-                content = ""
-                importance = 1
-                
-                lines = section.split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith('标题：'):
-                        title = line.replace('标题：', '').strip()
-                    elif line.startswith('内容：'):
-                        content = line.replace('内容：', '').strip()
-                    elif line.startswith('重要性：'):
-                        importance_text = line.replace('重要性：', '').strip()
-                        try:
-                            importance = int(importance_text)
-                        except ValueError:
-                            importance = 1
-                
+                # Only add if we have both title and content
                 if title and content:
                     knowledge_points.append({
                         'title': title,
                         'content': content,
-                        'importance_level': min(max(importance, 1), 5)
+                        'importance_level': min(max(importance_level, 1), 5)
                     })
             
             return knowledge_points

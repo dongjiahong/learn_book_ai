@@ -39,18 +39,18 @@ class KnowledgePointService:
         self, 
         db: Session, 
         document_id: int,
-        force_regenerate: bool = False
-    ) -> List[Dict[str, Any]]:
+        target_count: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
-        Extract knowledge points from a specific document
+        Extract knowledge points from a specific document (incremental)
         
         Args:
             db: Database session
             document_id: ID of the document to process
-            force_regenerate: Whether to regenerate existing knowledge points
+            target_count: Target number of knowledge points to extract
             
         Returns:
-            List of extracted knowledge points
+            Dictionary with extraction results
         """
         try:
             # Get document
@@ -58,14 +58,7 @@ class KnowledgePointService:
             if not document:
                 raise ValueError(f"Document with ID {document_id} not found")
             
-            # Check if knowledge points already exist and not forcing regeneration
-            if not force_regenerate:
-                existing_kps = db.query(KnowledgePoint).filter(
-                    KnowledgePoint.document_id == document_id
-                ).all()
-                if existing_kps:
-                    logger.info(f"Knowledge points already exist for document {document_id}")
-                    return [self._knowledge_point_to_dict(kp) for kp in existing_kps]
+            # 移除重复检查逻辑，每次都允许提取新的知识点
             
             # Read document content
             content = await self._read_document_content(document.file_path)
@@ -73,18 +66,13 @@ class KnowledgePointService:
                 raise ValueError(f"Could not read content from document {document.filename}")
             
             # Extract knowledge points using AI model
-            extracted_kps = await model_service.extract_knowledge_points(content)
+            extracted_kps = await model_service.extract_knowledge_points(content, target_count)
+            
+            # 不删除现有知识点，直接添加新的知识点
             
             # Save to database
             saved_kps = []
             for kp_data in extracted_kps:
-                # Delete existing knowledge points if regenerating
-                if force_regenerate:
-                    db.query(KnowledgePoint).filter(
-                        KnowledgePoint.document_id == document_id
-                    ).delete()
-                
-                # Create new knowledge point
                 kp = KnowledgePoint(
                     document_id=document_id,
                     title=kp_data['title'],
@@ -102,7 +90,35 @@ class KnowledgePointService:
             self._get_vector_store().add_knowledge_points(kp_dicts)
             
             logger.info(f"Extracted and saved {len(saved_kps)} knowledge points for document {document_id}")
-            return kp_dicts
+            
+            # 获取文档的所有知识点（包括之前的和新增的）
+            all_kps = db.query(KnowledgePoint).filter(
+                KnowledgePoint.document_id == document_id
+            ).all()
+            
+            # Calculate extraction stages info
+            extraction_stages = 1
+            if target_count and target_count > 15:
+                extraction_stages = (target_count + 14) // 15
+            
+            # Create success message
+            if target_count:
+                message = f"成功新增了 {len(saved_kps)} 个知识点（目标：{target_count}个），文档现共有 {len(all_kps)} 个知识点"
+                if extraction_stages > 1:
+                    message += f"，分{extraction_stages}个阶段完成"
+            else:
+                message = f"成功新增了 {len(saved_kps)} 个知识点，文档现共有 {len(all_kps)} 个知识点"
+            
+            # Return enriched response with success information
+            return {
+                "knowledge_points": kp_dicts,
+                "count": len(saved_kps),
+                "document_id": document_id,
+                "success": True,
+                "message": message,
+                "total_requested": target_count,
+                "extraction_stages": extraction_stages
+            }
             
         except Exception as e:
             logger.error(f"Failed to extract knowledge points from document {document_id}: {e}")
@@ -113,15 +129,15 @@ class KnowledgePointService:
         self, 
         db: Session, 
         knowledge_base_id: int,
-        force_regenerate: bool = False
+        target_count_per_document: Optional[int] = None
     ) -> Dict[str, Any]:
         """
-        Extract knowledge points from all documents in a knowledge base
+        Extract knowledge points from all documents in a knowledge base (incremental)
         
         Args:
             db: Database session
             knowledge_base_id: ID of the knowledge base
-            force_regenerate: Whether to regenerate existing knowledge points
+            target_count_per_document: Target number of knowledge points per document
             
         Returns:
             Summary of extraction results
@@ -147,10 +163,14 @@ class KnowledgePointService:
             
             for document in documents:
                 try:
-                    kps = await self.extract_knowledge_points_from_document(
-                        db, document.id, force_regenerate
+                    result = await self.extract_knowledge_points_from_document(
+                        db, document.id, target_count_per_document
                     )
-                    total_kps += len(kps)
+                    # Handle both old and new return formats
+                    if isinstance(result, dict) and "knowledge_points" in result:
+                        total_kps += result["count"]
+                    else:
+                        total_kps += len(result)
                     processed_docs += 1
                 except Exception as e:
                     errors.append(f"Document {document.filename}: {str(e)}")

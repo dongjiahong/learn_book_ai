@@ -8,10 +8,63 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 import uuid
 import os
+import requests
+import json
 
 from app.core.config import config
 
 logger = logging.getLogger(__name__)
+
+
+class OllamaEmbeddingFunction:
+    """Custom embedding function for Ollama"""
+    
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "shaw/dmeta-embedding-zh-small-q4"):
+        self.base_url = base_url.rstrip('/')
+        self.model = model
+        self._name = f"ollama-{model}"
+    
+    def name(self) -> str:
+        """Return the name of the embedding function"""
+        return self._name
+    
+    def __call__(self, input: List[str]) -> List[List[float]]:
+        """Generate embeddings for input texts"""
+        import numpy as np
+        embeddings = []
+        
+        for text in input:
+            try:
+                response = requests.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={
+                        "model": self.model,
+                        "prompt": text
+                    },
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    embedding = result.get("embedding", [])
+                    if embedding:
+                        # Convert to numpy array for ChromaDB compatibility
+                        embeddings.append(np.array(embedding))
+                    else:
+                        logger.error(f"No embedding returned for text: {text[:50]}...")
+                        # Use zero vector as fallback
+                        embeddings.append(np.array([0.0] * 768))
+                else:
+                    logger.error(f"Ollama embedding request failed: {response.status_code} - {response.text}")
+                    # Use zero vector as fallback
+                    embeddings.append(np.array([0.0] * 768))
+                    
+            except Exception as e:
+                logger.error(f"Error generating embedding: {e}")
+                # Use zero vector as fallback
+                embeddings.append(np.array([0.0] * 768))
+        
+        return embeddings
 
 
 class ChromaVectorStore:
@@ -27,29 +80,48 @@ class ChromaVectorStore:
     def _initialize_client(self):
         """Initialize ChromaDB client and collections"""
         try:
-            # Create persist directory if it doesn't exist
-            persist_dir = config.vector_store_persist_directory
-            os.makedirs(persist_dir, exist_ok=True)
-            
-            # Initialize ChromaDB client
-            self.client = chromadb.PersistentClient(
-                path=persist_dir,
-                settings=Settings(
-                    anonymized_telemetry=False,
-                    allow_reset=True
+            # Check if we should use remote ChromaDB or local persistent client
+            if hasattr(config, 'vector_store_host') and config.vector_store_host != "localhost" or \
+               hasattr(config, 'vector_store_port') and config.vector_store_port != 8000:
+                # Use HTTP client for remote ChromaDB
+                self.client = chromadb.HttpClient(
+                    host=config.vector_store_host,
+                    port=config.vector_store_port,
+                    settings=Settings(
+                        anonymized_telemetry=False
+                    )
                 )
-            )
-            
-            # Initialize embedding function
-            # Try to use sentence-transformers, fallback to default if not available
-            try:
-                self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name=config.embeddings_model
+                logger.info(f"Connected to remote ChromaDB at {config.vector_store_host}:{config.vector_store_port}")
+            else:
+                # Use HTTP client for local ChromaDB service on port 8000
+                self.client = chromadb.HttpClient(
+                    host="localhost",
+                    port=8000,
+                    settings=Settings(
+                        anonymized_telemetry=False
+                    )
                 )
-            except (ImportError, ValueError) as e:
-                logger.warning(f"Failed to load sentence-transformers: {e}")
-                logger.info("Using default embedding function")
-                self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
+                logger.info("Connected to local ChromaDB service on port 8000")
+            
+            # Initialize embedding function based on provider
+            if config.embeddings_provider == "ollama":
+                # Use custom Ollama embedding function
+                self.embedding_function = OllamaEmbeddingFunction(
+                    base_url=config.ollama_base_url,
+                    model=config.embeddings_model
+                )
+                logger.info(f"Using Ollama embedding function with model: {config.embeddings_model}")
+            else:
+                # Try to use sentence-transformers, fallback to default if not available
+                try:
+                    self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
+                        model_name=config.embeddings_model
+                    )
+                    logger.info(f"Using SentenceTransformer embedding function with model: {config.embeddings_model}")
+                except (ImportError, ValueError) as e:
+                    logger.warning(f"Failed to load sentence-transformers: {e}")
+                    logger.info("Using default embedding function")
+                    self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
             
             # Create or get document collection
             self.document_collection = self.client.get_or_create_collection(
@@ -178,7 +250,9 @@ class ChromaVectorStore:
             return True
             
         except Exception as e:
+            import traceback
             logger.error(f"Failed to add knowledge points: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
     def search_documents(

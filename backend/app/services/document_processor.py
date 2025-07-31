@@ -10,12 +10,31 @@ import threading
 from queue import Queue
 from dataclasses import dataclass
 from enum import Enum
+import os
 
 from sqlalchemy.orm import Session
 from ..models.database import get_db
 from ..models.crud import document_crud
 from ..models.models import Document
 from .rag_service import rag_service
+
+# Import text extraction libraries
+try:
+    import PyPDF2
+    import pdfplumber
+    HAS_PDF_SUPPORT = True
+except ImportError:
+    HAS_PDF_SUPPORT = False
+    logger.warning("PDF support not available. Install PyPDF2 and pdfplumber for PDF processing.")
+
+try:
+    import ebooklib
+    from ebooklib import epub
+    from bs4 import BeautifulSoup
+    HAS_EPUB_SUPPORT = True
+except ImportError:
+    HAS_EPUB_SUPPORT = False
+    logger.warning("EPUB support not available. Install ebooklib and beautifulsoup4 for EPUB processing.")
 
 logger = logging.getLogger(__name__)
 
@@ -244,6 +263,104 @@ class DocumentProcessor:
             
             if tasks_to_remove:
                 logger.info(f"Cleaned up {len(tasks_to_remove)} completed/failed tasks")
+    
+    async def extract_text_from_file(self, file_path: str) -> str:
+        """
+        Extract text content from various file formats
+        
+        Args:
+            file_path: Path to the file
+            
+        Returns:
+            Extracted text content
+        """
+        try:
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            file_extension = Path(file_path).suffix.lower()
+            
+            if file_extension == '.pdf':
+                return await self._extract_pdf_text(file_path)
+            elif file_extension == '.epub':
+                return await self._extract_epub_text(file_path)
+            elif file_extension in ['.txt', '.md']:
+                return await self._extract_text_file(file_path)
+            else:
+                raise ValueError(f"Unsupported file format: {file_extension}")
+                
+        except Exception as e:
+            logger.error(f"Failed to extract text from {file_path}: {e}")
+            raise
+    
+    async def _extract_pdf_text(self, file_path: str) -> str:
+        """Extract text from PDF file"""
+        if not HAS_PDF_SUPPORT:
+            raise ImportError("PDF support not available. Install PyPDF2 and pdfplumber.")
+        
+        try:
+            # Try pdfplumber first (better text extraction)
+            import pdfplumber
+            with pdfplumber.open(file_path) as pdf:
+                text_parts = []
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_parts.append(page_text)
+                return '\n\n'.join(text_parts)
+        except Exception as e:
+            logger.warning(f"pdfplumber failed for {file_path}, trying PyPDF2: {e}")
+            
+            # Fallback to PyPDF2
+            try:
+                import PyPDF2
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    text_parts = []
+                    for page in pdf_reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text_parts.append(page_text)
+                    return '\n\n'.join(text_parts)
+            except Exception as e2:
+                raise Exception(f"Both pdfplumber and PyPDF2 failed: {e}, {e2}")
+    
+    async def _extract_epub_text(self, file_path: str) -> str:
+        """Extract text from EPUB file"""
+        if not HAS_EPUB_SUPPORT:
+            raise ImportError("EPUB support not available. Install ebooklib and beautifulsoup4.")
+        
+        try:
+            book = epub.read_epub(file_path)
+            text_parts = []
+            
+            for item in book.get_items():
+                if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                    content = item.get_content().decode('utf-8')
+                    soup = BeautifulSoup(content, 'html.parser')
+                    text = soup.get_text()
+                    if text.strip():
+                        text_parts.append(text.strip())
+            
+            return '\n\n'.join(text_parts)
+            
+        except Exception as e:
+            raise Exception(f"Failed to extract EPUB text: {e}")
+    
+    async def _extract_text_file(self, file_path: str) -> str:
+        """Extract text from plain text or markdown file"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                return file.read()
+        except UnicodeDecodeError:
+            # Try with different encodings
+            for encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as file:
+                        return file.read()
+                except UnicodeDecodeError:
+                    continue
+            raise Exception("Could not decode file with any supported encoding")
 
 
 # Global document processor instance
