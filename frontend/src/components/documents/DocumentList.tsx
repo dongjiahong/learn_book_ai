@@ -87,7 +87,7 @@ export function DocumentList({ knowledgeBase, onBack }: DocumentListProps) {
       const statusPromises = unprocessedDocs.map(async (doc) => {
         try {
           const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8800'}/api/documents/${doc.id}/processing-status`,
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://172.18.3.1:8800'}/api/documents/${doc.id}/processing-status`,
             {
               headers: {
                 'Authorization': `Bearer ${tokens.access_token}`,

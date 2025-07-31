@@ -549,12 +549,29 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
+    // Build headers conditionally
+    const headers: Record<string, string> = {};
+    
+    // Add default Content-Type only if not explicitly overridden
+    const skipContentType = options.headers && 
+      Object.keys(options.headers).some(key => key.toLowerCase() === 'content-type');
+    
+    if (!skipContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    // Add other headers, filtering out any Content-Type set to null/undefined
+    if (options.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          headers[key] = value as string;
+        }
+      });
+    }
+
     const config: RequestInit = {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     };
 
     const response = await fetch(url, config);
@@ -734,7 +751,8 @@ class ApiClient {
         method: 'POST',
         body: formData,
         headers: {
-          // Don't set Content-Type for FormData, let browser set it with boundary
+          // Set Content-Type to null to skip it entirely
+          'Content-Type': null as unknown as string,
         },
       }
     );
