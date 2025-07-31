@@ -2,7 +2,7 @@
 API endpoints for knowledge point management
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -11,6 +11,7 @@ from ..core.middleware import get_current_user
 from ..models.database import get_db
 from ..models.models import User
 from ..services.knowledge_point_service import knowledge_point_service
+from ..schemas.knowledge_points import KnowledgePointSearchRequest
 
 router = APIRouter(prefix="/api/knowledge-points", tags=["knowledge-points"])
 
@@ -200,70 +201,47 @@ async def delete_knowledge_point(
 
 @router.post("/search")
 async def search_knowledge_points(
-    query: Optional[str] = None,
-    knowledge_base_id: Optional[int] = None,
-    document_id: Optional[int] = None,
-    importance_level: Optional[int] = None,
-    n_results: int = 10,
+    search_request: KnowledgePointSearchRequest = Body(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Search knowledge points using vector similarity or filters"""
+    """Search knowledge points from existing knowledge points"""
     try:
-        # 验证参数
-        if n_results < 1 or n_results > 50:
-            raise HTTPException(status_code=400, detail="n_results must be between 1 and 50")
+        # 在已存在的知识点中搜索
+        knowledge_points = knowledge_point_service.get_knowledge_points(
+            db=db,
+            knowledge_base_id=search_request.knowledge_base_id,
+            document_id=search_request.document_id,
+            search_query=search_request.query,
+            skip=0,
+            limit=search_request.n_results
+        )
         
-        # 如果有查询词，使用向量搜索
-        if query and query.strip():
-            results = knowledge_point_service.search_knowledge_points(
-                query=query.strip(),
-                document_id=document_id,
-                importance_level=importance_level,
-                n_results=n_results
-            )
-            
-            return {
-                "success": True,
-                "query": query.strip(),
-                "results": results,
-                "count": len(results)
-            }
+        # 转换为搜索结果格式
+        results = []
+        for kp_dict in knowledge_points:
+            results.append({
+                "content": kp_dict["content"],
+                "metadata": {
+                    "knowledge_point_id": kp_dict["id"],
+                    "document_id": kp_dict["document_id"],
+                    "title": kp_dict["title"],
+                    "importance_level": kp_dict["importance_level"]
+                },
+                "id": str(kp_dict["id"])
+            })
         
-        # 否则使用过滤器搜索
-        else:
-            if not knowledge_base_id and not document_id:
-                raise HTTPException(status_code=400, detail="Either query or knowledge_base_id/document_id must be provided")
-            
-            knowledge_points = knowledge_point_service.get_knowledge_points(
-                db=db,
-                knowledge_base_id=knowledge_base_id,
-                document_id=document_id,
-                importance_level=importance_level,
-                skip=0,
-                limit=n_results
-            )
-            
-            # 转换为搜索结果格式
-            results = []
-            for kp_dict in knowledge_points:
-                results.append({
-                    "content": kp_dict["content"],
-                    "metadata": {
-                        "knowledge_point_id": kp_dict["id"],
-                        "document_id": kp_dict["document_id"],
-                        "title": kp_dict["title"],
-                        "importance_level": kp_dict["importance_level"]
-                    },
-                    "id": str(kp_dict["id"])
-                })
-            
-            return {
-                "success": True,
-                "query": "",
-                "results": results,
-                "count": len(results)
+        return {
+            "success": True,
+            "query": search_request.query,
+            "results": results,
+            "count": len(results),
+            "filters": {
+                "knowledge_base_id": search_request.knowledge_base_id,
+                "document_id": search_request.document_id,
+                "n_results": search_request.n_results
             }
+        }
         
     except HTTPException:
         raise
