@@ -279,3 +279,6 @@ Thumbs.db
 backend/server.log
 backend/test.db
 backend/rag_learning.db
+
+yarn.lock
+uploads
