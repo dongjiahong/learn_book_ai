@@ -284,7 +284,7 @@ async def get_documents(
         raise HTTPException(status_code=500, detail="Failed to get documents")
 
 
-@router.get("/documents/{document_id}", response_model=DocumentResponse)
+@router.get("/documents/{document_id}")
 async def get_document(
     document_id: int,
     current_user: User = Depends(get_current_user),
@@ -301,7 +301,10 @@ async def get_document(
         if not knowledge_base or knowledge_base.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorized to access this document")
         
-        return DocumentResponse(**document.__dict__)
+        return {
+            "success": True,
+            "document": DocumentResponse(**document.__dict__)
+        }
         
     except HTTPException:
         raise

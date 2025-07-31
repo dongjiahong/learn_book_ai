@@ -747,8 +747,8 @@ class ApiClient {
     );
   }
 
-  async getDocument(token: string, id: number): Promise<Document> {
-    return this.authenticatedRequest<Document>(`/api/documents/${id}`, token);
+  async getDocument(token: string, id: number): Promise<{ success: boolean; document: Document }> {
+    return this.authenticatedRequest<{ success: boolean; document: Document }>(`/api/documents/${id}`, token);
   }
 
   async uploadDocument(
@@ -1247,15 +1247,20 @@ class ApiClient {
     token: string,
     query: string,
     options: {
+      knowledge_base_id?: number;
       document_id?: number;
       importance_level?: number;
       n_results?: number;
     } = {}
   ): Promise<KnowledgePointSearchResponse> {
-    const body = {
-      query,
+    const body: unknown = {
       ...options,
     };
+
+    // 只有当query不为空时才添加到body中
+    if (query && query.trim()) {
+      body.query = query.trim();
+    }
 
     return this.authenticatedRequest('/api/knowledge-points/search', token, {
       method: 'POST',

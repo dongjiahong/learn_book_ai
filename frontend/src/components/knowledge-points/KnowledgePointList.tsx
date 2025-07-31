@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   Button,
@@ -52,6 +53,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   height,
   refreshTrigger,
 }) => {
+  const router = useRouter();
   const { tokens } = useAuthStore();
   const token = tokens?.access_token;
   const [knowledgePoints, setKnowledgePoints] = useState<KnowledgePoint[]>([]);
@@ -77,7 +79,6 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   });
 
   // Modal states
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState<KnowledgePoint | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
@@ -198,10 +199,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
       render: (text: string, record: KnowledgePoint) => (
         <Button
           type="link"
-          onClick={() => {
-            setSelectedKnowledgePoint(record);
-            setDetailModalVisible(true);
-          }}
+          onClick={() => router.push(`/knowledge-points/${record.id}`)}
           style={{ padding: 0, height: 'auto', textAlign: 'left' }}
         >
           <Text strong>{text}</Text>
@@ -252,10 +250,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
             <Button
               type="text"
               icon={<EyeOutlined />}
-              onClick={() => {
-                setSelectedKnowledgePoint(record);
-                setDetailModalVisible(true);
-              }}
+              onClick={() => router.push(`/knowledge-points/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="编辑">
@@ -391,52 +386,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
         />
       </Card>
 
-      {/* Detail Modal */}
-      <Modal
-        title="知识点详情"
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>
-            关闭
-          </Button>,
-          <Button
-            key="edit"
-            type="primary"
-            onClick={() => {
-              setDetailModalVisible(false);
-              setEditModalVisible(true);
-            }}
-          >
-            编辑
-          </Button>,
-        ]}
-        width={800}
-      >
-        {selectedKnowledgePoint && (
-          <div>
-            <Title level={4}>{selectedKnowledgePoint.title}</Title>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <div>
-                <Text strong>重要性级别：</Text>
-                <Tag color={getImportanceColor(selectedKnowledgePoint.importance_level)}>
-                  {getImportanceText(selectedKnowledgePoint.importance_level)}
-                </Tag>
-              </div>
-              <div>
-                <Text strong>创建时间：</Text>
-                <Text>{new Date(selectedKnowledgePoint.created_at).toLocaleString('zh-CN')}</Text>
-              </div>
-              <div>
-                <Text strong>内容：</Text>
-                <Paragraph style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>
-                  {selectedKnowledgePoint.content}
-                </Paragraph>
-              </div>
-            </Space>
-          </div>
-        )}
-      </Modal>
+
 
       {/* Edit Modal */}
       {selectedKnowledgePoint && (

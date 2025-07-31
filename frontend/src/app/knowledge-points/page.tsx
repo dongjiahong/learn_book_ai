@@ -17,7 +17,6 @@ import {
 import {
   BookOutlined,
   SearchOutlined,
-  BarChartOutlined,
   ImportOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
@@ -36,8 +35,6 @@ const KnowledgePointsPage: React.FC = () => {
   const { tokens } = useAuthStore();
   const token = tokens?.access_token;
   const [activeTab, setActiveTab] = useState('list');
-  const [selectedKnowledgePointId, setSelectedKnowledgePointId] = useState<number | null>(null);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<number | undefined>();
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -69,8 +66,8 @@ const KnowledgePointsPage: React.FC = () => {
   }, [token]);
 
   const handleKnowledgePointSelect = (kpId: number) => {
-    setSelectedKnowledgePointId(kpId);
-    setDetailModalVisible(true);
+    // 直接跳转到详情页面
+    window.open(`/knowledge-points/${kpId}`, '_blank');
   };
 
   const openExtractModal = (type: 'document' | 'knowledge_base') => {
@@ -230,15 +227,6 @@ const KnowledgePointsPage: React.FC = () => {
                             智能搜索
                           </span>
                         )
-                      },
-                      {
-                        key: "statistics",
-                        label: (
-                          <span>
-                            <BarChartOutlined />
-                            统计分析
-                          </span>
-                        )
                       }
                     ]}
                   />
@@ -291,45 +279,13 @@ const KnowledgePointsPage: React.FC = () => {
                   </Col>
                 </Row>
               )}
-              {activeTab === 'statistics' && (
-                <Row gutter={24}>
-                  <Col span={24}>
-                    <Card title="知识点统计" loading={false}>
-                      <Paragraph>
-                        统计分析功能正在开发中，将提供知识点分布、重要性分析、学习进度等统计信息。
-                      </Paragraph>
-                    </Card>
-                  </Col>
-                </Row>
-              )}
+
             </div>
           </Card>
 
 
 
-            {/* Knowledge Point Detail Modal */}
-            <Modal
-              title="知识点详情"
-              open={detailModalVisible}
-              onCancel={() => setDetailModalVisible(false)}
-              footer={[
-                <Button key="close" onClick={() => setDetailModalVisible(false)}>
-                  关闭
-                </Button>,
-              ]}
-              width={800}
-            >
-              {selectedKnowledgePointId && (
-                <div>
-                  <Paragraph>
-                    知识点详情功能正在完善中，将显示完整的知识点信息、相关文档、学习记录等。
-                  </Paragraph>
-                  <Paragraph type="secondary">
-                    知识点ID: {selectedKnowledgePointId}
-                  </Paragraph>
-                </div>
-              )}
-            </Modal>
+
 
             {/* Extract Modal */}
             <Modal

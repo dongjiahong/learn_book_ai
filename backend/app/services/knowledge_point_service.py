@@ -237,10 +237,10 @@ class KnowledgePointService:
                     )
                 )
             
-            # Order by importance and creation date
+            # Order by creation date (newest first), then by importance
             query = query.order_by(
-                KnowledgePoint.importance_level.desc(),
-                KnowledgePoint.created_at.desc()
+                KnowledgePoint.created_at.desc(),
+                KnowledgePoint.importance_level.desc()
             )
             
             # Apply pagination
