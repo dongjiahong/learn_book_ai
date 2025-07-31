@@ -24,6 +24,7 @@ const ThemedConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <ConfigProvider
       locale={zhCN}
       theme={antdTheme}
+      wave={{ disabled: true }}
     >
       <App>
         {children}

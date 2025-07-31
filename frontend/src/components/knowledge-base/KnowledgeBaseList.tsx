@@ -23,7 +23,7 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient, KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate } from '@/lib/api';
+import { apiClient, KnowledgeBase, KnowledgeBaseCreate } from '@/lib/api';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -41,7 +41,7 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
   const [editingKb, setEditingKb] = useState<KnowledgeBase | null>(null);
   const [form] = Form.useForm();
 
-  const fetchKnowledgeBases = async () => {
+  const fetchKnowledgeBases = React.useCallback(async () => {
     if (!tokens?.access_token) return;
 
     setLoading(true);
@@ -54,11 +54,11 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
     } finally {
       setLoading(false);
     }
-  };
+  }, [tokens?.access_token, message]);
 
   useEffect(() => {
     fetchKnowledgeBases();
-  }, [tokens]);
+  }, [fetchKnowledgeBases]);
 
   const handleCreate = () => {
     setEditingKb(null);
@@ -76,7 +76,10 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
   };
 
   const handleSubmit = async (values: KnowledgeBaseCreate) => {
-    if (!tokens?.access_token) return;
+    if (!tokens?.access_token) {
+      message.error('未找到认证令牌，请重新登录');
+      return;
+    }
 
     try {
       // Clean up the data - remove undefined values and convert empty strings to undefined
@@ -85,13 +88,20 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
         description: values.description && values.description.trim() ? values.description.trim() : undefined
       };
 
+      console.log('提交数据:', cleanedValues);
+      console.log('编辑模式:', !!editingKb);
+
       if (editingKb) {
         // Update existing knowledge base
-        await apiClient.updateKnowledgeBase(tokens.access_token, editingKb.id, cleanedValues);
+        console.log('更新知识库 ID:', editingKb.id);
+        const result = await apiClient.updateKnowledgeBase(tokens.access_token, editingKb.id, cleanedValues);
+        console.log('更新结果:', result);
         message.success('知识库更新成功');
       } else {
         // Create new knowledge base
-        await apiClient.createKnowledgeBase(tokens.access_token, cleanedValues);
+        console.log('创建新知识库');
+        const result = await apiClient.createKnowledgeBase(tokens.access_token, cleanedValues);
+        console.log('创建结果:', result);
         message.success('知识库创建成功');
       }
       
@@ -102,21 +112,30 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       message.error(`${editingKb ? '更新知识库失败' : '创建知识库失败'}: ${errorMessage}`);
       console.error('Error saving knowledge base:', error);
-      console.error('Request data:', values);
-      console.error('Token:', tokens?.access_token ? 'Present' : 'Missing');
+      console.error('Request data:', cleanedValues);
+      console.error('Editing KB:', editingKb);
+      console.error('Token present:', !!tokens?.access_token);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!tokens?.access_token) return;
+    if (!tokens?.access_token) {
+      message.error('未找到认证令牌，请重新登录');
+      return;
+    }
 
     try {
-      await apiClient.deleteKnowledgeBase(tokens.access_token, id);
+      console.log('删除知识库 ID:', id);
+      const result = await apiClient.deleteKnowledgeBase(tokens.access_token, id);
+      console.log('删除结果:', result);
       message.success('知识库删除成功');
       fetchKnowledgeBases();
     } catch (error) {
-      message.error('删除知识库失败');
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      message.error(`删除知识库失败: ${errorMessage}`);
       console.error('Error deleting knowledge base:', error);
+      console.error('Knowledge base ID:', id);
+      console.error('Token present:', !!tokens?.access_token);
     }
   };
 
@@ -160,16 +179,29 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
               <Card
                 hoverable
                 actions={[
-                  <EditOutlined key="edit" onClick={() => handleEdit(kb)} />,
+                  <EditOutlined 
+                    key="edit" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(kb);
+                    }} 
+                  />,
                   <Popconfirm
                     key="delete"
                     title="确定要删除这个知识库吗？"
                     description="删除后将无法恢复，包括其中的所有文档。"
-                    onConfirm={() => handleDelete(kb.id)}
+                    onConfirm={(e) => {
+                      e?.stopPropagation();
+                      handleDelete(kb.id);
+                    }}
                     okText="确定"
                     cancelText="取消"
                   >
-                    <DeleteOutlined />
+                    <DeleteOutlined 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    />
                   </Popconfirm>,
                 ]}
                 onClick={() => onSelectKnowledgeBase?.(kb)}
