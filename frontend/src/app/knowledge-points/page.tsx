@@ -12,22 +12,25 @@ import {
   Modal,
   Select,
   message,
+  Input,
 } from 'antd';
 import {
   BookOutlined,
   SearchOutlined,
   BarChartOutlined,
+  ImportOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
-import { apiClient, KnowledgeBase } from '@/lib/api';
+import { apiClient, KnowledgeBase, Document } from '@/lib/api';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ResponsiveLayout } from '@/components/layout/ResponsiveLayout';
 import KnowledgePointList from '@/components/knowledge-points/KnowledgePointList';
 import KnowledgePointSearch from '@/components/knowledge-points/KnowledgePointSearch';
 
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
+const { Search } = Input;
 
 const KnowledgePointsPage: React.FC = () => {
   const { tokens } = useAuthStore();
@@ -37,6 +40,15 @@ const KnowledgePointsPage: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedKnowledgeBaseId, setSelectedKnowledgeBaseId] = useState<number | undefined>();
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  
+  // 搜索和提取相关状态
+  const [searchQuery, setSearchQuery] = useState('');
+  const [extractModalVisible, setExtractModalVisible] = useState(false);
+  const [extractType, setExtractType] = useState<'document' | 'knowledge_base' | null>(null);
+  const [extractKnowledgeBaseId, setExtractKnowledgeBaseId] = useState<number | undefined>();
+  const [extractDocumentId, setExtractDocumentId] = useState<number | undefined>();
+  const [extractDocuments, setExtractDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadKnowledgeBases = async () => {
@@ -57,6 +69,71 @@ const KnowledgePointsPage: React.FC = () => {
   const handleKnowledgePointSelect = (kpId: number) => {
     setSelectedKnowledgePointId(kpId);
     setDetailModalVisible(true);
+  };
+
+  const openExtractModal = (type: 'document' | 'knowledge_base') => {
+    setExtractType(type);
+    setExtractKnowledgeBaseId(undefined);
+    setExtractDocumentId(undefined);
+    setExtractDocuments([]);
+    setExtractModalVisible(true);
+  };
+
+  const handleExtractKnowledgeBaseChange = async (kbId: number) => {
+    setExtractKnowledgeBaseId(kbId);
+    setExtractDocumentId(undefined);
+    
+    if (extractType === 'document') {
+      try {
+        const response = await apiClient.getDocuments(token!, kbId, 0, 100);
+        setExtractDocuments(response.documents);
+      } catch (error) {
+        console.error('Failed to load documents:', error);
+        message.error('加载文档失败');
+      }
+    }
+  };
+
+  const handleExtractFromDocument = async (docId: number) => {
+    if (!token) return;
+
+    setLoading(true);
+    try {
+      const response = await apiClient.extractKnowledgePointsFromDocument(token, docId, false);
+      message.success(`成功提取 ${response.count} 个知识点`);
+      setExtractModalVisible(false);
+    } catch (error) {
+      console.error('Failed to extract knowledge points:', error);
+      message.error('提取知识点失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExtractFromKnowledgeBase = async (kbId: number) => {
+    if (!token) return;
+
+    setLoading(true);
+    try {
+      const response = await apiClient.extractKnowledgePointsFromKnowledgeBase(token, kbId, false);
+      message.success(`成功处理 ${response.processed_documents} 个文档，提取 ${response.total_knowledge_points} 个知识点`);
+      setExtractModalVisible(false);
+    } catch (error) {
+      console.error('Failed to extract knowledge points:', error);
+      message.error('批量提取知识点失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmExtract = () => {
+    if (extractType === 'document' && extractDocumentId) {
+      handleExtractFromDocument(extractDocumentId);
+    } else if (extractType === 'knowledge_base' && extractKnowledgeBaseId) {
+      handleExtractFromKnowledgeBase(extractKnowledgeBaseId);
+    } else {
+      message.warning('请选择要提取的源');
+    }
   };
 
 
@@ -99,67 +176,102 @@ const KnowledgePointsPage: React.FC = () => {
 
           {/* Main Content */}
           <Card>
-              <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                items={[
-                  {
-                    key: "list",
-                    label: (
-                      <span>
-                        <BookOutlined />
-                        知识点列表
-                      </span>
-                    ),
-                    children: (
-                      <KnowledgePointList
-                        showFilters={true}
-                        showActions={true}
-                        height={600}
-                      />
-                    )
-                  },
-                  {
-                    key: "search",
-                    label: (
-                      <span>
-                        <SearchOutlined />
-                        智能搜索
-                      </span>
-                    ),
-                    children: (
-                      <Row gutter={24}>
-                        <Col span={24}>
-                          <KnowledgePointSearch
-                            onKnowledgePointSelect={handleKnowledgePointSelect}
-                          />
-                        </Col>
-                      </Row>
-                    )
-                  },
-                  {
-                    key: "statistics",
-                    label: (
-                      <span>
-                        <BarChartOutlined />
-                        统计分析
-                      </span>
-                    ),
-                    children: (
-                      <Row gutter={24}>
-                        <Col span={24}>
-                          <Card title="知识点统计" loading={false}>
-                            <Paragraph>
-                              统计分析功能正在开发中，将提供知识点分布、重要性分析、学习进度等统计信息。
-                            </Paragraph>
-                          </Card>
-                        </Col>
-                      </Row>
-                    )
-                  }
-                ]}
-              />
-            </Card>
+            <div style={{ marginBottom: 16 }}>
+              <Row justify="space-between" align="middle">
+                <Col>
+                  <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    items={[
+                      {
+                        key: "list",
+                        label: (
+                          <span>
+                            <BookOutlined />
+                            知识点列表
+                          </span>
+                        )
+                      },
+                      {
+                        key: "search",
+                        label: (
+                          <span>
+                            <SearchOutlined />
+                            智能搜索
+                          </span>
+                        )
+                      },
+                      {
+                        key: "statistics",
+                        label: (
+                          <span>
+                            <BarChartOutlined />
+                            统计分析
+                          </span>
+                        )
+                      }
+                    ]}
+                  />
+                </Col>
+                <Col>
+                  <Space>
+                    <Search
+                      placeholder="搜索知识点标题或内容"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{ width: 250 }}
+                      enterButton={<SearchOutlined />}
+                    />
+                    <Button
+                      type="default"
+                      icon={<ImportOutlined />}
+                      onClick={() => openExtractModal('document')}
+                      loading={loading}
+                    >
+                      从文档提取
+                    </Button>
+                    <Button
+                      type="default"
+                      icon={<ImportOutlined />}
+                      onClick={() => openExtractModal('knowledge_base')}
+                      loading={loading}
+                    >
+                      从知识库批量提取
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </div>
+
+            <div>
+              {activeTab === 'list' && (
+                <KnowledgePointList
+                  showActions={true}
+                  height={600}
+                />
+              )}
+              {activeTab === 'search' && (
+                <Row gutter={24}>
+                  <Col span={24}>
+                    <KnowledgePointSearch
+                      onKnowledgePointSelect={handleKnowledgePointSelect}
+                    />
+                  </Col>
+                </Row>
+              )}
+              {activeTab === 'statistics' && (
+                <Row gutter={24}>
+                  <Col span={24}>
+                    <Card title="知识点统计" loading={false}>
+                      <Paragraph>
+                        统计分析功能正在开发中，将提供知识点分布、重要性分析、学习进度等统计信息。
+                      </Paragraph>
+                    </Card>
+                  </Col>
+                </Row>
+              )}
+            </div>
+          </Card>
 
 
 
@@ -185,6 +297,64 @@ const KnowledgePointsPage: React.FC = () => {
                   </Paragraph>
                 </div>
               )}
+            </Modal>
+
+            {/* Extract Modal */}
+            <Modal
+              title={extractType === 'document' ? '从文档提取知识点' : '从知识库批量提取知识点'}
+              open={extractModalVisible}
+              onCancel={() => setExtractModalVisible(false)}
+              onOk={handleConfirmExtract}
+              confirmLoading={loading}
+              okText="开始提取"
+              cancelText="取消"
+              width={600}
+            >
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <div>
+                  <Text strong>选择知识库：</Text>
+                  <Select
+                    placeholder="请选择知识库"
+                    value={extractKnowledgeBaseId}
+                    onChange={handleExtractKnowledgeBaseChange}
+                    style={{ width: '100%', marginTop: 8 }}
+                  >
+                    {knowledgeBases.map(kb => (
+                      <Option key={kb.id} value={kb.id}>
+                        {kb.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+
+                {extractType === 'document' && (
+                  <div>
+                    <Text strong>选择文档：</Text>
+                    <Select
+                      placeholder="请选择文档"
+                      value={extractDocumentId}
+                      onChange={setExtractDocumentId}
+                      disabled={!extractKnowledgeBaseId}
+                      style={{ width: '100%', marginTop: 8 }}
+                    >
+                      {extractDocuments.map(doc => (
+                        <Option key={doc.id} value={doc.id}>
+                          {doc.filename}
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+
+                <div style={{ padding: '16px', backgroundColor: '#f6f8fa', borderRadius: '6px' }}>
+                  <Text type="secondary">
+                    {extractType === 'document' 
+                      ? '将从选定的文档中自动提取知识点，包括重要概念、定义、步骤等内容。'
+                      : '将从选定知识库中的所有文档批量提取知识点，这可能需要较长时间。'
+                    }
+                  </Text>
+                </div>
+              </Space>
             </Modal>
         </div>
       </ResponsiveLayout>

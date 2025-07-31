@@ -23,10 +23,6 @@ import {
 import {
   EditOutlined,
   DeleteOutlined,
-  SearchOutlined,
-  ReloadOutlined,
-  ImportOutlined,
-  FilterOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -35,13 +31,11 @@ import { apiClient, KnowledgePoint, KnowledgeBase, Document } from '@/lib/api';
 import KnowledgePointForm from './KnowledgePointForm';
 
 const { Title, Text, Paragraph } = Typography;
-const { Search } = Input;
 const { Option } = Select;
 
 interface KnowledgePointListProps {
   knowledgeBaseId?: number;
   documentId?: number;
-  showFilters?: boolean;
   showActions?: boolean;
   height?: number;
 }
@@ -56,7 +50,6 @@ interface FilterState {
 const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   knowledgeBaseId,
   documentId,
-  showFilters = true,
   showActions = true,
   height,
 }) => {
@@ -66,13 +59,12 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [statistics, setStatistics] = useState<{
     total_knowledge_points: number;
     by_importance_level: Record<string, number>;
   } | null>(null);
   
-  const [filters, setFilters] = useState<FilterState>({
+  const [filters] = useState<FilterState>({
     searchQuery: '',
     importanceLevel: undefined,
     knowledgeBaseId: knowledgeBaseId,
@@ -128,17 +120,6 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     }
   }, [token]);
 
-  const loadDocuments = useCallback(async (kbId: number) => {
-    if (!token) return;
-
-    try {
-      const response = await apiClient.getDocuments(token, kbId, 0, 100);
-      setDocuments(response.documents);
-    } catch (error) {
-      console.error('Failed to load documents:', error);
-    }
-  }, [token]);
-
   const loadStatistics = useCallback(async () => {
     if (!token) return;
 
@@ -158,12 +139,6 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     loadKnowledgeBases();
     loadStatistics();
   }, [loadKnowledgePoints, loadKnowledgeBases, loadStatistics]);
-
-  useEffect(() => {
-    if (filters.knowledgeBaseId) {
-      loadDocuments(filters.knowledgeBaseId);
-    }
-  }, [filters.knowledgeBaseId, loadDocuments]);
 
   const handleDelete = async (id: number) => {
     if (!token) return;
@@ -194,39 +169,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     }
   };
 
-  const handleExtractFromDocument = async (docId: number) => {
-    if (!token) return;
 
-    setLoading(true);
-    try {
-      const response = await apiClient.extractKnowledgePointsFromDocument(token, docId, false);
-      message.success(`成功提取 ${response.count} 个知识点`);
-      loadKnowledgePoints();
-      loadStatistics();
-    } catch (error) {
-      console.error('Failed to extract knowledge points:', error);
-      message.error('提取知识点失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExtractFromKnowledgeBase = async (kbId: number) => {
-    if (!token) return;
-
-    setLoading(true);
-    try {
-      const response = await apiClient.extractKnowledgePointsFromKnowledgeBase(token, kbId, false);
-      message.success(`成功处理 ${response.processed_documents} 个文档，提取 ${response.total_knowledge_points} 个知识点`);
-      loadKnowledgePoints();
-      loadStatistics();
-    } catch (error) {
-      console.error('Failed to extract knowledge points:', error);
-      message.error('批量提取知识点失败');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getImportanceColor = (level: number) => {
     const colors = ['default', 'blue', 'green', 'orange', 'red'];
@@ -386,123 +329,23 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
         </Row>
       )}
 
-      {/* Filters */}
-      {showFilters && (
-        <Card style={{ marginBottom: 16 }}>
-          <Row gutter={16} align="middle">
-            <Col span={6}>
-              <Search
-                placeholder="搜索知识点标题或内容"
-                value={filters.searchQuery}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
-                onSearch={loadKnowledgePoints}
-                enterButton={<SearchOutlined />}
-              />
-            </Col>
-            <Col span={4}>
-              <Select
-                placeholder="选择知识库"
-                value={filters.knowledgeBaseId}
-                onChange={(value) => setFilters(prev => ({ ...prev, knowledgeBaseId: value, documentId: undefined }))}
-                allowClear
-                style={{ width: '100%' }}
-              >
-                {knowledgeBases.map(kb => (
-                  <Option key={kb.id} value={kb.id}>{kb.name}</Option>
-                ))}
-              </Select>
-            </Col>
-            <Col span={4}>
-              <Select
-                placeholder="选择文档"
-                value={filters.documentId}
-                onChange={(value) => setFilters(prev => ({ ...prev, documentId: value }))}
-                allowClear
-                disabled={!filters.knowledgeBaseId}
-                style={{ width: '100%' }}
-              >
-                {documents.map(doc => (
-                  <Option key={doc.id} value={doc.id}>{doc.filename}</Option>
-                ))}
-              </Select>
-            </Col>
-            <Col span={4}>
-              <Select
-                placeholder="重要性级别"
-                value={filters.importanceLevel}
-                onChange={(value) => setFilters(prev => ({ ...prev, importanceLevel: value }))}
-                allowClear
-                style={{ width: '100%' }}
-              >
-                <Option value={1}>一般</Option>
-                <Option value={2}>较低</Option>
-                <Option value={3}>中等</Option>
-                <Option value={4}>重要</Option>
-                <Option value={5}>非常重要</Option>
-              </Select>
-            </Col>
-            <Col span={6}>
-              <Space>
-                <Button icon={<ReloadOutlined />} onClick={loadKnowledgePoints}>
-                  刷新
-                </Button>
-                <Button icon={<FilterOutlined />} onClick={() => {
-                  setFilters({
-                    searchQuery: '',
-                    importanceLevel: undefined,
-                    knowledgeBaseId: knowledgeBaseId,
-                    documentId: documentId,
-                  });
-                }}>
-                  清除筛选
-                </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
-      )}
 
-      {/* Action Bar */}
-      {showActions && (
+
+      {/* Batch Actions */}
+      {showActions && selectedRowKeys.length > 0 && (
         <Card style={{ marginBottom: 16 }}>
-          <Row justify="space-between" align="middle">
+          <Row justify="end" align="middle">
             <Col>
-              <Space>
-                {filters.documentId && (
-                  <Button
-                    icon={<ImportOutlined />}
-                    onClick={() => handleExtractFromDocument(filters.documentId!)}
-                    loading={loading}
-                  >
-                    从当前文档提取
-                  </Button>
-                )}
-                {filters.knowledgeBaseId && (
-                  <Button
-                    icon={<ImportOutlined />}
-                    onClick={() => handleExtractFromKnowledgeBase(filters.knowledgeBaseId!)}
-                    loading={loading}
-                  >
-                    从知识库批量提取
-                  </Button>
-                )}
-              </Space>
-            </Col>
-            <Col>
-              <Space>
-                {selectedRowKeys.length > 0 && (
-                  <Popconfirm
-                    title={`确定要删除选中的 ${selectedRowKeys.length} 个知识点吗？`}
-                    onConfirm={handleBatchDelete}
-                    okText="确定"
-                    cancelText="取消"
-                  >
-                    <Button danger>
-                      批量删除 ({selectedRowKeys.length})
-                    </Button>
-                  </Popconfirm>
-                )}
-              </Space>
+              <Popconfirm
+                title={`确定要删除选中的 ${selectedRowKeys.length} 个知识点吗？`}
+                onConfirm={handleBatchDelete}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button danger>
+                  批量删除 ({selectedRowKeys.length})
+                </Button>
+              </Popconfirm>
             </Col>
           </Row>
         </Card>
@@ -600,6 +443,8 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
           knowledgePoint={selectedKnowledgePoint}
         />
       )}
+
+
     </div>
   );
 };
