@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { Card, Typography, Space, Statistic, Button } from 'antd';
+import { Card, Typography, Space, Statistic, Button, Spin, message } from 'antd';
 import { 
   FolderOutlined, 
   FileTextOutlined, 
@@ -15,6 +15,7 @@ import {
   PlayCircleOutlined
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -27,13 +28,35 @@ import {
   EmptyState
 } from '@/components/layout';
 import { useNotification } from '@/components/feedback';
+import { apiClient, DashboardStats } from '@/lib/api';
 
 const { Title, Text } = Typography;
 
 function DashboardContent() {
-  const { user } = useAuth();
+  const { user, tokens } = useAuth();
   const router = useRouter();
   const notification = useNotification();
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboardStats = async () => {
+    if (!tokens?.access_token) return;
+
+    try {
+      setLoading(true);
+      const stats = await apiClient.getDashboardStats(tokens.access_token);
+      setDashboardStats(stats);
+    } catch (error) {
+      console.error('获取仪表板统计数据失败:', error);
+      message.error('获取统计数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [tokens]);
 
   const handleQuickAction = (action: string, path: string) => {
     notification.info(`正在前往${action}...`);
@@ -43,28 +66,28 @@ function DashboardContent() {
   const statsData = [
     {
       title: '知识库',
-      value: 0,
+      value: dashboardStats?.knowledge_bases || 0,
       icon: <FolderOutlined className="text-blue-500" />,
       suffix: '个',
       color: 'blue',
     },
     {
       title: '文档',
-      value: 0,
+      value: dashboardStats?.documents || 0,
       icon: <FileTextOutlined className="text-green-500" />,
       suffix: '份',
       color: 'green',
     },
     {
       title: '学习记录',
-      value: 0,
+      value: dashboardStats?.learning_records || 0,
       icon: <BookOutlined className="text-orange-500" />,
       suffix: '次',
       color: 'orange',
     },
     {
       title: '学习积分',
-      value: 0,
+      value: dashboardStats?.learning_points || 0,
       icon: <TrophyOutlined className="text-purple-500" />,
       suffix: '分',
       color: 'purple',
@@ -109,17 +132,19 @@ function DashboardContent() {
                 className="hover:shadow-lg transition-shadow duration-200 fade-in"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <Statistic
-                  title={stat.title}
-                  value={stat.value}
-                  prefix={stat.icon}
-                  suffix={stat.suffix}
-                  valueStyle={{ 
-                    color: `var(--color-${stat.color}-6, #1890ff)`,
-                    fontSize: '24px',
-                    fontWeight: 'bold'
-                  }}
-                />
+                <Spin spinning={loading}>
+                  <Statistic
+                    title={stat.title}
+                    value={stat.value}
+                    prefix={stat.icon}
+                    suffix={stat.suffix}
+                    valueStyle={{ 
+                      color: `var(--color-${stat.color}-6, #1890ff)`,
+                      fontSize: '24px',
+                      fontWeight: 'bold'
+                    }}
+                  />
+                </Spin>
               </Card>
             </ResponsiveCol>
           ))}
@@ -180,16 +205,53 @@ function DashboardContent() {
               className="h-full slide-in-right"
               style={{ animationDelay: '200ms' }}
             >
-              <EmptyState
-                title="暂无学习记录"
-                description="开始学习后，这里会显示您的学习活动"
-                image={<ClockCircleOutlined className="text-4xl text-gray-300" />}
-                action={{
-                  text: '开始学习',
-                  onClick: () => handleQuickAction('答题练习', '/practice'),
-                  icon: <PlayCircleOutlined />,
-                }}
-              />
+              {loading ? (
+                <div className="flex justify-center items-center h-32">
+                  <Spin />
+                </div>
+              ) : dashboardStats?.recent_activity && dashboardStats.recent_activity.length > 0 ? (
+                <div className="space-y-3">
+                  {dashboardStats.recent_activity.map((activity, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <BookOutlined className="text-blue-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Text className="text-sm font-medium block truncate">
+                          {activity.question_text}
+                        </Text>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Text type="secondary" className="text-xs">
+                            得分: {activity.score}
+                          </Text>
+                          <Text type="secondary" className="text-xs">
+                            {new Date(activity.date).toLocaleDateString()}
+                          </Text>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button 
+                    type="link" 
+                    size="small" 
+                    onClick={() => router.push('/learning-records')}
+                    className="w-full"
+                  >
+                    查看全部记录
+                  </Button>
+                </div>
+              ) : (
+                <EmptyState
+                  title="暂无学习记录"
+                  description="开始学习后，这里会显示您的学习活动"
+                  image={<ClockCircleOutlined className="text-4xl text-gray-300" />}
+                  action={{
+                    text: '开始学习',
+                    onClick: () => handleQuickAction('答题练习', '/practice'),
+                    icon: <PlayCircleOutlined />,
+                  }}
+                />
+              )}
             </Card>
           </ResponsiveCol>
         </ResponsiveGrid>

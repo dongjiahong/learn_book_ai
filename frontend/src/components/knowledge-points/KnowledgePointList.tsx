@@ -68,7 +68,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [statistics, setStatistics] = useState<any>(null);
+  const [statistics, setStatistics] = useState<unknown>(null);
   
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
@@ -467,13 +467,6 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
           <Row justify="space-between" align="middle">
             <Col>
               <Space>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setCreateModalVisible(true)}
-                >
-                  新建知识点
-                </Button>
                 {filters.documentId && (
                   <Button
                     icon={<ImportOutlined />}

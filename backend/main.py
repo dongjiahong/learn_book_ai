@@ -11,6 +11,7 @@ from app.api.learning import router as learning_router
 from app.api.knowledge_points import router as knowledge_points_router
 from app.api.review import router as review_router
 from app.api.anki import router as anki_router
+from app.api.dashboard import router as dashboard_router
 from app.core.config import config
 from app.services.document_processor import document_processor
 from app.models.init_db import init_database, create_sample_data
@@ -52,6 +53,7 @@ app.include_router(learning_router)
 app.include_router(knowledge_points_router)
 app.include_router(review_router)
 app.include_router(anki_router)
+app.include_router(dashboard_router)
 
 @app.get("/")
 async def root():

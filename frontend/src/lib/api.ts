@@ -536,6 +536,24 @@ export interface AnkiExportListResponse {
   exports: AnkiExportListItem[];
 }
 
+// Dashboard interfaces
+export interface DashboardStats {
+  knowledge_bases: number;
+  documents: number;
+  learning_records: number;
+  learning_points: number;
+  recent_activity: Array<{
+    date: string;
+    score: number;
+    question_text: string;
+  }>;
+  review_stats: {
+    due_today: number;
+    completed_today: number;
+    learning_streak: number;
+  };
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -1403,6 +1421,11 @@ class ApiClient {
     return this.authenticatedRequest(`/api/anki/exports/${exportId}`, token, {
       method: 'DELETE',
     });
+  }
+
+  // Dashboard endpoints
+  async getDashboardStats(token: string): Promise<DashboardStats> {
+    return this.authenticatedRequest('/api/dashboard/stats', token);
   }
 }
 

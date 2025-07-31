@@ -112,7 +112,6 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       message.error(`${editingKb ? '更新知识库失败' : '创建知识库失败'}: ${errorMessage}`);
       console.error('Error saving knowledge base:', error);
-      console.error('Request data:', cleanedValues);
       console.error('Editing KB:', editingKb);
       console.error('Token present:', !!tokens?.access_token);
     }
