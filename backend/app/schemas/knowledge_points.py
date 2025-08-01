@@ -18,11 +18,11 @@ class KnowledgePointResponse(BaseModel):
     """Schema for knowledge point response"""
     id: int
     title: str
+    question: Optional[str] = None  # 新增：知识点问题字段
     content: str
     importance_level: int
     document_id: int
     created_at: datetime
-    updated_at: datetime
     
     class Config:
         from_attributes = True
@@ -39,6 +39,7 @@ class KnowledgePointListResponse(BaseModel):
 class KnowledgePointCreate(BaseModel):
     """Schema for creating a knowledge point"""
     title: str = Field(..., min_length=1, max_length=255)
+    question: Optional[str] = Field(None, description="Question based on knowledge point content")
     content: str = Field(..., min_length=1)
     importance_level: int = Field(..., ge=1, le=5)
     document_id: int = Field(..., gt=0)
@@ -47,6 +48,7 @@ class KnowledgePointCreate(BaseModel):
 class KnowledgePointUpdate(BaseModel):
     """Schema for updating a knowledge point"""
     title: Optional[str] = Field(None, min_length=1, max_length=255)
+    question: Optional[str] = Field(None, description="Question based on knowledge point content")
     content: Optional[str] = Field(None, min_length=1)
     importance_level: Optional[int] = Field(None, ge=1, le=5)
 

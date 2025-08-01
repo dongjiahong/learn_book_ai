@@ -24,11 +24,13 @@ import {
   FileMarkdownOutlined,
   EyeOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  BookOutlined
 } from '@ant-design/icons';
 import { UploadProps } from 'antd';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient, Document, KnowledgeBase } from '@/lib/api';
+import { LearningSetCreatePanel } from '@/components/learning-sets/LearningSetCreatePanel';
 
 const { Title, Text } = Typography;
 
@@ -53,6 +55,7 @@ export function DocumentList({ knowledgeBase, onBack }: DocumentListProps) {
     processing_progress: number;
     error_message?: string;
   }}>({});
+  const [learningSetModalVisible, setLearningSetModalVisible] = useState(false);
 
   const fetchDocuments = async () => {
     if (!tokens?.access_token) return;
@@ -250,15 +253,24 @@ export function DocumentList({ knowledgeBase, onBack }: DocumentListProps) {
           </Button>
           <Title level={3}>{knowledgeBase.name} - 文档管理</Title>
         </div>
-        <Upload {...uploadProps} showUploadList={false}>
+        <Space>
           <Button
-            type="primary"
-            icon={<UploadOutlined />}
-            loading={uploading}
+            type="default"
+            icon={<BookOutlined />}
+            onClick={() => setLearningSetModalVisible(true)}
           >
-            上传文档
+            学习
           </Button>
-        </Upload>
+          <Upload {...uploadProps} showUploadList={false}>
+            <Button
+              type="primary"
+              icon={<UploadOutlined />}
+              loading={uploading}
+            >
+              上传文档
+            </Button>
+          </Upload>
+        </Space>
       </div>
 
       {documents.length === 0 && !loading ? (
@@ -340,6 +352,11 @@ export function DocumentList({ knowledgeBase, onBack }: DocumentListProps) {
                       <Text type="secondary">
                         大小: {formatFileSize(doc.file_size)}
                       </Text>
+                      {doc.processed && (
+                        <Text type="secondary">
+                          知识点: {doc.knowledge_point_count || 0} 个
+                        </Text>
+                      )}
                       <Text type="secondary">
                         上传时间: {new Date(doc.created_at).toLocaleString()}
                       </Text>
@@ -376,6 +393,17 @@ export function DocumentList({ knowledgeBase, onBack }: DocumentListProps) {
           </div>
         )}
       </Modal>
+
+      <LearningSetCreatePanel
+        visible={learningSetModalVisible}
+        onCancel={() => setLearningSetModalVisible(false)}
+        onSuccess={() => {
+          setLearningSetModalVisible(false);
+          // 可以在这里添加成功后的处理逻辑，比如跳转到学习集页面
+        }}
+        knowledgeBase={knowledgeBase}
+        documents={documents}
+      />
     </div>
   );
 }

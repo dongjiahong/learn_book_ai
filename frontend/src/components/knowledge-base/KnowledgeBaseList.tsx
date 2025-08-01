@@ -217,13 +217,20 @@ export function KnowledgeBaseList({ onSelectKnowledgeBase }: KnowledgeBaseListPr
                       <Text type="secondary" className="text-sm">
                         {kb.description || '暂无描述'}
                       </Text>
-                      <div className="mt-2 flex justify-between items-center">
-                        <Tag icon={<FileTextOutlined />} color="blue">
-                          {kb.document_count || 0} 个文档
-                        </Tag>
-                        <Text type="secondary" className="text-xs">
-                          {new Date(kb.created_at).toLocaleDateString()}
-                        </Text>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex space-x-2">
+                            <Tag icon={<FileTextOutlined />} color="blue">
+                              {kb.document_count || 0} 个文档
+                            </Tag>
+                            <Tag color="green">
+                              {kb.knowledge_point_count || 0} 个知识点
+                            </Tag>
+                          </div>
+                          <Text type="secondary" className="text-xs">
+                            {new Date(kb.created_at).toLocaleDateString()}
+                          </Text>
+                        </div>
                       </div>
                     </div>
                   }

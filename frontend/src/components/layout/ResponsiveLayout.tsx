@@ -85,7 +85,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
     {
       key: '/questions',
       icon: <FileTextOutlined />,
-      label: <Link href="/questions">问题管理</Link>,
+      label: <Link href="/questions">学习集管理</Link>,
     },
     {
       key: '/practice',

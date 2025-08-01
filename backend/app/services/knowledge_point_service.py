@@ -76,6 +76,7 @@ class KnowledgePointService:
                 kp = KnowledgePoint(
                     document_id=document_id,
                     title=kp_data['title'],
+                    question=kp_data.get('question'),  # 新增：支持question字段
                     content=kp_data['content'],
                     importance_level=kp_data.get('importance_level', 1)
                 )
@@ -319,6 +320,7 @@ class KnowledgePointService:
         db: Session,
         kp_id: int,
         title: Optional[str] = None,
+        question: Optional[str] = None,
         content: Optional[str] = None,
         importance_level: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
@@ -329,6 +331,7 @@ class KnowledgePointService:
             db: Database session
             kp_id: Knowledge point ID
             title: New title (optional)
+            question: New question (optional)
             content: New content (optional)
             importance_level: New importance level (optional)
             
@@ -343,6 +346,8 @@ class KnowledgePointService:
             # Update fields
             if title is not None:
                 kp.title = title
+            if question is not None:
+                kp.question = question
             if content is not None:
                 kp.content = content
             if importance_level is not None:
@@ -508,6 +513,7 @@ class KnowledgePointService:
             "id": kp.id,
             "document_id": kp.document_id,
             "title": kp.title,
+            "question": kp.question,  # 新增：包含question字段
             "content": kp.content,
             "importance_level": kp.importance_level,
             "created_at": kp.created_at.isoformat() if kp.created_at else None

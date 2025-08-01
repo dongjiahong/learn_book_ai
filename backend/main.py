@@ -8,6 +8,7 @@ from app.api.questions import router as questions_router
 from app.api.rag import router as rag_router
 from app.api.evaluation import router as evaluation_router
 from app.api.learning import router as learning_router
+from app.api.learning_sets import router as learning_sets_router
 from app.api.knowledge_points import router as knowledge_points_router
 from app.api.review import router as review_router
 from app.api.anki import router as anki_router
@@ -50,6 +51,7 @@ app.include_router(questions_router)
 app.include_router(rag_router)
 app.include_router(evaluation_router)
 app.include_router(learning_router)
+app.include_router(learning_sets_router)
 app.include_router(knowledge_points_router)
 app.include_router(review_router)
 app.include_router(anki_router)

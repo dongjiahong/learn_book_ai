@@ -1,5 +1,5 @@
 """
-Pydantic schemas for learning records
+Pydantic schemas for learning records and learning sets
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -11,6 +11,13 @@ class ContentType(str, Enum):
     """Content type for review records"""
     QUESTION = "question"
     KNOWLEDGE_POINT = "knowledge_point"
+
+
+class MasteryLevel(int, Enum):
+    """Mastery level for learning records"""
+    NOT_LEARNED = 0  # 不会
+    LEARNING = 1     # 学习中
+    MASTERED = 2     # 已学会
 
 
 class AnswerRecordBase(BaseModel):
@@ -132,3 +139,162 @@ class LearningRecordSearchRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=100, description="Maximum number of records to return")
     sort_by: Optional[str] = Field(default="answered_at", description="Field to sort by")
     sort_order: Optional[str] = Field(default="desc", description="Sort order")
+
+
+# Learning Set Schemas
+class LearningSetBase(BaseModel):
+    """Base schema for learning sets"""
+    name: str = Field(..., min_length=1, max_length=200, description="Name of the learning set")
+    description: Optional[str] = Field(None, description="Description of the learning set")
+
+
+class LearningSetCreate(LearningSetBase):
+    """Schema for creating learning sets"""
+    knowledge_base_id: int = Field(..., description="ID of the knowledge base")
+    document_ids: List[int] = Field(..., description="List of document IDs to include in the learning set")
+
+
+class LearningSetUpdate(BaseModel):
+    """Schema for updating learning sets"""
+    name: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated name")
+    description: Optional[str] = Field(None, description="Updated description")
+
+
+class LearningSetItemResponse(BaseModel):
+    """Schema for learning set item responses"""
+    id: int
+    knowledge_point_id: int
+    added_at: datetime
+    
+    # Knowledge point details
+    knowledge_point_title: str
+    knowledge_point_content: str
+    knowledge_point_question: Optional[str] = None
+    knowledge_point_importance: int
+    
+    # Learning progress
+    mastery_level: Optional[int] = None
+    review_count: Optional[int] = None
+    next_review: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class LearningSetResponse(LearningSetBase):
+    """Schema for learning set responses"""
+    id: int
+    user_id: int
+    knowledge_base_id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    # Statistics
+    total_items: int = Field(default=0, description="Total number of knowledge points")
+    mastered_items: int = Field(default=0, description="Number of mastered knowledge points")
+    learning_items: int = Field(default=0, description="Number of knowledge points being learned")
+    new_items: int = Field(default=0, description="Number of new knowledge points")
+    
+    # Related data
+    knowledge_base_name: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class LearningSetDetailResponse(LearningSetResponse):
+    """Schema for detailed learning set responses with items"""
+    items: List[LearningSetItemResponse] = Field(default_factory=list, description="Learning set items")
+
+
+# Learning Record Schemas (for the new learning system)
+class NewLearningRecordBase(BaseModel):
+    """Base schema for new learning records"""
+    mastery_level: MasteryLevel = Field(default=MasteryLevel.NOT_LEARNED, description="Mastery level")
+    review_count: int = Field(default=0, description="Number of reviews")
+    ease_factor: float = Field(default=2.5, ge=1.3, le=3.0, description="Ease factor for spaced repetition")
+    interval_days: int = Field(default=1, ge=1, description="Interval in days for next review")
+
+
+class NewLearningRecordCreate(NewLearningRecordBase):
+    """Schema for creating new learning records"""
+    knowledge_point_id: int = Field(..., description="ID of the knowledge point")
+    learning_set_id: int = Field(..., description="ID of the learning set")
+
+
+class NewLearningRecordUpdate(BaseModel):
+    """Schema for updating learning records"""
+    mastery_level: Optional[MasteryLevel] = Field(None, description="Updated mastery level")
+    review_count: Optional[int] = Field(None, description="Updated review count")
+    ease_factor: Optional[float] = Field(None, ge=1.3, le=3.0, description="Updated ease factor")
+    interval_days: Optional[int] = Field(None, ge=1, description="Updated interval in days")
+    last_reviewed: Optional[datetime] = Field(None, description="Last review timestamp")
+    next_review: Optional[datetime] = Field(None, description="Next review timestamp")
+
+
+class NewLearningRecordResponse(NewLearningRecordBase):
+    """Schema for learning record responses"""
+    id: int
+    user_id: int
+    knowledge_point_id: int
+    learning_set_id: int
+    last_reviewed: Optional[datetime]
+    next_review: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    
+    # Related data
+    knowledge_point_title: Optional[str] = None
+    knowledge_point_question: Optional[str] = None
+    knowledge_point_content: Optional[str] = None
+    learning_set_name: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
+# Learning Session Schemas
+class LearningSessionStart(BaseModel):
+    """Schema for starting a learning session"""
+    learning_set_id: int = Field(..., description="ID of the learning set")
+    review_type: Optional[str] = Field(default="all", description="Type of review: 'all', 'due', 'new'")
+
+
+class LearningSessionAnswer(BaseModel):
+    """Schema for answering in a learning session"""
+    knowledge_point_id: int = Field(..., description="ID of the knowledge point")
+    learning_set_id: int = Field(..., description="ID of the learning set")
+    mastery_level: MasteryLevel = Field(..., description="User's mastery level for this knowledge point")
+
+
+class LearningSessionResponse(BaseModel):
+    """Schema for learning session responses"""
+    learning_set_id: int
+    learning_set_name: str
+    current_item: Optional[LearningSetItemResponse] = None
+    remaining_items: int = Field(default=0, description="Number of remaining items")
+    session_progress: Dict[str, int] = Field(default_factory=dict, description="Session progress statistics")
+
+
+# Statistics Schemas
+class LearningSetStatistics(BaseModel):
+    """Schema for learning set statistics"""
+    learning_set_id: int
+    total_items: int = Field(default=0, description="Total knowledge points")
+    mastered_items: int = Field(default=0, description="Mastered knowledge points")
+    learning_items: int = Field(default=0, description="Knowledge points being learned")
+    new_items: int = Field(default=0, description="New knowledge points")
+    due_items: int = Field(default=0, description="Knowledge points due for review")
+    
+    # Progress over time
+    daily_progress: List[Dict[str, Any]] = Field(default_factory=list, description="Daily progress data")
+    mastery_distribution: Dict[str, int] = Field(default_factory=dict, description="Distribution by mastery level")
+
+
+class KnowledgeBaseStatistics(BaseModel):
+    """Schema for knowledge base statistics"""
+    knowledge_base_id: int
+    total_documents: int = Field(default=0, description="Total number of documents")
+    total_knowledge_points: int = Field(default=0, description="Total number of knowledge points")
+    documents: List[Dict[str, Any]] = Field(default_factory=list, description="Document statistics")
+    learning_sets_count: int = Field(default=0, description="Number of learning sets created from this knowledge base")

@@ -29,6 +29,7 @@ export interface KnowledgeBase {
   created_at: string;
   updated_at: string;
   document_count?: number;
+  knowledge_point_count?: number;
 }
 
 export interface KnowledgeBaseCreate {
@@ -62,6 +63,7 @@ export interface Document {
   file_size: number;
   processed: boolean;
   created_at: string;
+  knowledge_point_count?: number;
 }
 
 export interface DocumentListResponse {
@@ -325,8 +327,76 @@ export interface KnowledgePoint {
   document_id: number;
   title: string;
   content: string;
+  question?: string;
   importance_level: number;
   created_at: string;
+}
+
+// Learning Set interfaces
+export interface LearningSet {
+  id: number;
+  user_id: number;
+  knowledge_base_id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+  knowledge_base_name?: string;
+  total_items?: number;
+  mastered_items?: number;
+  learning_items?: number;
+  new_items?: number;
+}
+
+export interface LearningSetCreate {
+  name: string;
+  description?: string;
+  knowledge_base_id: number;
+  document_ids: number[];
+}
+
+export interface LearningSetUpdate {
+  name?: string;
+  description?: string;
+}
+
+export interface LearningSetItem {
+  id: number;
+  learning_set_id: number;
+  knowledge_point_id: number;
+  added_at: string;
+  knowledge_point: KnowledgePoint;
+  mastery_level: number; // 0: 不会, 1: 学习中, 2: 已学会
+  next_review?: string;
+  review_count: number;
+}
+
+export interface LearningSetListResponse {
+  learning_sets: LearningSet[];
+}
+
+export interface LearningSetDetailResponse extends LearningSet {
+  items: LearningSetItem[];
+}
+
+export interface LearningRecord {
+  id: number;
+  user_id: number;
+  knowledge_point_id: number;
+  learning_set_id: number;
+  mastery_level: number;
+  review_count: number;
+  last_reviewed?: string;
+  next_review?: string;
+  ease_factor: number;
+  interval_days: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LearningRecordCreate {
+  knowledge_point_id: number;
+  learning_set_id: number;
+  mastery_level: number;
 }
 
 
@@ -723,6 +793,19 @@ class ApiClient {
     return this.authenticatedRequest<{ message: string }>(`/api/knowledge-bases/${id}`, token, {
       method: 'DELETE',
     });
+  }
+
+  async getKnowledgeBaseStatistics(token: string, id: number): Promise<{
+    knowledge_base_id: number;
+    total_documents: number;
+    total_knowledge_points: number;
+    documents: Array<{
+      id: number;
+      filename: string;
+      knowledge_point_count: number;
+    }>;
+  }> {
+    return this.authenticatedRequest(`/api/knowledge-bases/${id}/statistics`, token);
   }
 
   // Document endpoints
@@ -1253,7 +1336,7 @@ class ApiClient {
       n_results?: number;
     } = {}
   ): Promise<KnowledgePointSearchResponse> {
-    const body: unknown = {
+    const body: Record<string, unknown> = {
       ...options,
     };
 
@@ -1299,6 +1382,56 @@ class ApiClient {
       body: JSON.stringify({
         kp_ids: kpIds,
       }),
+    });
+  }
+
+  // Learning Set endpoints
+  async getLearningSets(token: string): Promise<LearningSetListResponse> {
+    return this.authenticatedRequest('/api/learning-sets', token);
+  }
+
+  async getLearningSet(token: string, id: number): Promise<LearningSetDetailResponse> {
+    return this.authenticatedRequest(`/api/learning-sets/${id}`, token);
+  }
+
+  async createLearningSet(
+    token: string,
+    data: LearningSetCreate
+  ): Promise<LearningSet> {
+    return this.authenticatedRequest('/api/learning-sets', token, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLearningSet(
+    token: string,
+    id: number,
+    data: LearningSetUpdate
+  ): Promise<LearningSet> {
+    return this.authenticatedRequest(`/api/learning-sets/${id}`, token, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLearningSet(token: string, id: number): Promise<{ message: string }> {
+    return this.authenticatedRequest(`/api/learning-sets/${id}`, token, {
+      method: 'DELETE',
+    });
+  }
+
+  async getLearningSetItems(token: string, id: number): Promise<{ items: LearningSetItem[] }> {
+    return this.authenticatedRequest(`/api/learning-sets/${id}/items`, token);
+  }
+
+  async createLearningRecord(
+    token: string,
+    data: LearningRecordCreate
+  ): Promise<LearningRecord> {
+    return this.authenticatedRequest('/api/learning-records', token, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 

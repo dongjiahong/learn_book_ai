@@ -11,13 +11,13 @@ from pathlib import Path
 
 from ..core.middleware import get_current_user
 from ..models.database import get_db
-from ..models.crud import knowledge_base_crud, document_crud
+from ..models.crud import knowledge_base_crud, document_crud, knowledge_point_crud
 from ..models.models import User
 from ..schemas.documents import (
     KnowledgeBaseCreate, KnowledgeBaseUpdate, KnowledgeBaseResponse,
     KnowledgeBaseDetailResponse, KnowledgeBaseListResponse,
     DocumentResponse, DocumentListResponse, DocumentUploadResponse,
-    DocumentProcessingStatus, DocumentUpdate
+    DocumentProcessingStatus, DocumentUpdate, KnowledgeBaseStatistics
 )
 from ..services.file_service import file_service
 from ..services.document_processor import document_processor
@@ -54,18 +54,19 @@ async def get_knowledge_bases(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get user's knowledge bases with pagination"""
+    """Get user's knowledge bases with pagination and statistics"""
     try:
-        # Get knowledge bases with document count
-        kb_with_counts = knowledge_base_crud.get_with_document_count(
+        # Get knowledge bases with document and knowledge point statistics
+        kb_with_stats = knowledge_base_crud.get_with_statistics(
             db=db, user_id=current_user.id, skip=skip, limit=limit
         )
         
         # Convert to response format
         knowledge_bases = []
-        for kb, doc_count in kb_with_counts:
+        for kb, doc_count, kp_count in kb_with_stats:
             kb_dict = kb.__dict__.copy()
-            kb_dict['document_count'] = doc_count
+            kb_dict['document_count'] = doc_count or 0
+            kb_dict['knowledge_point_count'] = kp_count or 0
             knowledge_bases.append(KnowledgeBaseResponse(**kb_dict))
         
         total = knowledge_base_crud.count_by_user(db=db, user_id=current_user.id)
@@ -87,7 +88,7 @@ async def get_knowledge_base(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get a specific knowledge base with its documents"""
+    """Get a specific knowledge base with its documents and knowledge point statistics"""
     try:
         # Get knowledge base
         knowledge_base = knowledge_base_crud.get(db=db, id=knowledge_base_id)
@@ -101,10 +102,21 @@ async def get_knowledge_base(
         # Get documents
         documents = document_crud.get_by_knowledge_base(db=db, knowledge_base_id=knowledge_base_id)
         
+        # Get knowledge point count for each document
+        documents_with_stats = []
+        total_knowledge_points = 0
+        for doc in documents:
+            kp_count = knowledge_point_crud.count_by_document(db=db, document_id=doc.id)
+            doc_dict = doc.__dict__.copy()
+            doc_dict['knowledge_point_count'] = kp_count
+            documents_with_stats.append(DocumentResponse(**doc_dict))
+            total_knowledge_points += kp_count
+        
         # Convert to response format
         kb_dict = knowledge_base.__dict__.copy()
-        kb_dict['documents'] = [DocumentResponse(**doc.__dict__) for doc in documents]
+        kb_dict['documents'] = documents_with_stats
         kb_dict['document_count'] = len(documents)
+        kb_dict['knowledge_point_count'] = total_knowledge_points
         
         return KnowledgeBaseDetailResponse(**kb_dict)
     except HTTPException:
@@ -112,6 +124,34 @@ async def get_knowledge_base(
     except Exception as e:
         logger.error(f"Error getting knowledge base {knowledge_base_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to get knowledge base")
+
+
+@router.get("/knowledge-bases/{knowledge_base_id}/statistics", response_model=KnowledgeBaseStatistics)
+async def get_knowledge_base_statistics(
+    knowledge_base_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get detailed statistics for a knowledge base"""
+    try:
+        # Get knowledge base
+        knowledge_base = knowledge_base_crud.get(db=db, id=knowledge_base_id)
+        if not knowledge_base:
+            raise HTTPException(status_code=404, detail="Knowledge base not found")
+        
+        # Check ownership
+        if knowledge_base.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this knowledge base")
+        
+        # Get statistics
+        stats = knowledge_base_crud.get_statistics(db=db, knowledge_base_id=knowledge_base_id)
+        
+        return KnowledgeBaseStatistics(**stats)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting statistics for knowledge base {knowledge_base_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get knowledge base statistics")
 
 
 @router.put("/knowledge-bases/{knowledge_base_id}", response_model=KnowledgeBaseResponse)

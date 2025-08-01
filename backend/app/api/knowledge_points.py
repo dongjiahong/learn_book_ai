@@ -149,6 +149,7 @@ async def get_knowledge_point(
 async def update_knowledge_point(
     kp_id: int,
     title: Optional[str] = None,
+    question: Optional[str] = None,
     content: Optional[str] = None,
     importance_level: Optional[int] = None,
     current_user: User = Depends(get_current_user),
@@ -164,6 +165,7 @@ async def update_knowledge_point(
             db=db,
             kp_id=kp_id,
             title=title,
+            question=question,
             content=content,
             importance_level=importance_level
         )

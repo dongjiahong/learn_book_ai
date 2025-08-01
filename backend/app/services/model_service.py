@@ -168,21 +168,23 @@ class ModelService:
 
 要求：
 1. 提取3-8个最重要的知识点，确保覆盖内容的核心概念
-2. 每个知识点包含标题、详细内容说明、重要性级别(1-5)
-3. 内容说明要丰富详细，包括：
+2. 每个知识点包含标题、提问、详细内容说明、重要性级别(1-5)
+3. 提问应该基于知识点内容设计，帮助学习者测试对该知识点的理解
+4. 内容说明要丰富详细，包括：
    - 概念的定义和解释
    - 相关的背景信息
    - 实际应用场景或例子
    - 与其他概念的关联
    - 学习要点和注意事项
-4. 直接输出结果，不要包含思考过程或<think>标签
 5. 严格按照以下格式输出：
 
 标题：知识点的简洁标题
-内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整。
+提问：基于该知识点设计的学习问题
+内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整，字数在100-300之间。
 重要性：3
 ---
 标题：另一个知识点标题
+提问：另一个基于知识点的学习问题
 内容：另一个知识点的详细说明，同样要求内容丰富完整，包含多个方面的信息。
 重要性：4
 ---
@@ -200,18 +202,19 @@ class ModelService:
 
 要求：
 1. 提取恰好{target_count}个知识点，确保覆盖内容的核心概念
-2. 每个知识点包含标题、详细内容说明、重要性级别(1-5)
-3. 内容说明要丰富详细，包括：
+2. 每个知识点包含标题、提问、详细内容说明、重要性级别(1-5)
+3. 提问应该基于知识点内容设计，帮助学习者测试对该知识点的理解
+4. 内容说明要丰富详细，包括：
    - 概念的定义和解释
    - 相关的背景信息
    - 实际应用场景或例子
    - 与其他概念的关联
    - 学习要点和注意事项
-4. 直接输出结果，不要包含思考过程或<think>标签
 5. 严格按照以下格式输出：
 
 标题：知识点的简洁标题
-内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整。
+提问：基于该知识点设计的学习问题
+内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整，字数在100-300之间。
 重要性：3
 ---
 
@@ -246,18 +249,19 @@ class ModelService:
 要求：
 1. 这是第{stage + 1}阶段提取，请提取{current_stage_count}个知识点
 2. 重点关注内容的不同方面，避免与之前提取的知识点重复
-3. 每个知识点包含标题、详细内容说明、重要性级别(1-5)
-4. 内容说明要丰富详细，包括：
+3. 每个知识点包含标题、提问、详细内容说明、重要性级别(1-5)
+4. 提问应该基于知识点内容设计，帮助学习者测试对该知识点的理解
+5. 内容说明要丰富详细，包括：
    - 概念的定义和解释
    - 相关的背景信息
    - 实际应用场景或例子
    - 与其他概念的关联
    - 学习要点和注意事项
-5. 直接输出结果，不要包含思考过程或<think>标签
 6. 严格按照以下格式输出：
 
 标题：知识点的简洁标题
-内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整。
+提问：基于该知识点设计的学习问题
+内容：知识点的详细说明，包含定义、背景、应用场景、学习要点等丰富内容。可以分段描述，确保内容充实完整，字数100-300之间。
 重要性：3
 ---
 
@@ -299,23 +303,25 @@ class ModelService:
             # Parse knowledge points using regex
             knowledge_points = []
             
-            # Use regex to match knowledge points
+            # Use regex to match knowledge points with new format including question
             import re
-            pattern = r'标题：([^\n]+)\s*\n内容：(.*?)\s*重要性：(\d+)'
+            pattern = r'标题：([^\n]+)\s*\n提问：([^\n]+)\s*\n内容：(.*?)\s*重要性：(\d+)'
             matches = re.findall(pattern, response, re.DOTALL)
             
-            for title, content, importance in matches:
+            for title, question, content, importance in matches:
                 title = title.strip()
+                question = question.strip()
                 content = content.strip()
                 try:
                     importance_level = int(importance)
                 except ValueError:
                     importance_level = 1
                 
-                # Only add if we have both title and content
-                if title and content:
+                # Only add if we have title, question and content
+                if title and question and content:
                     knowledge_points.append({
                         'title': title,
+                        'question': question,
                         'content': content,
                         'importance_level': min(max(importance_level, 1), 5)
                     })

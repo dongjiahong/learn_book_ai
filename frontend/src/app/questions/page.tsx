@@ -3,42 +3,28 @@
 import React, { useState } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { QuestionList } from '@/components/questions/QuestionList';
-import { QuestionDetail } from '@/components/questions/QuestionDetail';
-import { Question } from '@/lib/api';
+import { LearningSetList } from '@/components/learning-sets/LearningSetList';
+import { LearningSet } from '@/lib/api';
 
-function QuestionsContent() {
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
-
-  const handleSelectQuestion = (question: Question) => {
-    setSelectedQuestion(question);
-  };
-
-  const handleBackToList = () => {
-    setSelectedQuestion(null);
+function LearningSetManagementContent() {
+  const handleSelectLearningSet = (learningSet: LearningSet) => {
+    // TODO: 导航到学习集详情页面或学习界面
+    console.log('Selected learning set:', learningSet);
   };
 
   return (
     <MainLayout>
       <div className="p-6">
-        {selectedQuestion ? (
-          <QuestionDetail
-            question={selectedQuestion}
-            onBack={handleBackToList}
-            onUpdate={setSelectedQuestion}
-          />
-        ) : (
-          <QuestionList onSelectQuestion={handleSelectQuestion} />
-        )}
+        <LearningSetList onSelectLearningSet={handleSelectLearningSet} />
       </div>
     </MainLayout>
   );
 }
 
-export default function QuestionsPage() {
+export default function LearningSetManagementPage() {
   return (
     <ProtectedRoute>
-      <QuestionsContent />
+      <LearningSetManagementContent />
     </ProtectedRoute>
   );
 }

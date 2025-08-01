@@ -230,6 +230,81 @@ class CRUDKnowledgeBase(CRUDBase[KnowledgeBase, KnowledgeBaseCreate, KnowledgeBa
             logger.error(f"Error getting knowledge bases with document count for user {user_id}: {e}")
             raise
     
+    def get_with_statistics(
+        self, 
+        db: Session, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[tuple]:
+        """Get knowledge bases with document and knowledge point statistics"""
+        try:
+            return (
+                db.query(
+                    self.model,
+                    func.count(func.distinct(Document.id)).label('document_count'),
+                    func.count(func.distinct(KnowledgePoint.id)).label('knowledge_point_count')
+                )
+                .select_from(self.model)
+                .outerjoin(Document, self.model.id == Document.knowledge_base_id)
+                .outerjoin(KnowledgePoint, Document.id == KnowledgePoint.document_id)
+                .filter(self.model.user_id == user_id)
+                .group_by(self.model.id)
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting knowledge bases with statistics for user {user_id}: {e}")
+            raise
+    
+    def get_statistics(self, db: Session, knowledge_base_id: int) -> Dict[str, Any]:
+        """Get detailed statistics for a specific knowledge base"""
+        try:
+            # Get basic counts
+            total_documents = (
+                db.query(func.count(Document.id))
+                .filter(Document.knowledge_base_id == knowledge_base_id)
+                .scalar()
+            )
+            
+            total_knowledge_points = (
+                db.query(func.count(KnowledgePoint.id))
+                .join(Document)
+                .filter(Document.knowledge_base_id == knowledge_base_id)
+                .scalar()
+            )
+            
+            # Get document-level statistics
+            document_stats = (
+                db.query(
+                    Document.id,
+                    Document.filename,
+                    func.count(KnowledgePoint.id).label('knowledge_point_count')
+                )
+                .outerjoin(KnowledgePoint)
+                .filter(Document.knowledge_base_id == knowledge_base_id)
+                .group_by(Document.id, Document.filename)
+                .all()
+            )
+            
+            return {
+                "knowledge_base_id": knowledge_base_id,
+                "total_documents": total_documents or 0,
+                "total_knowledge_points": total_knowledge_points or 0,
+                "documents": [
+                    {
+                        "id": doc.id,
+                        "filename": doc.filename,
+                        "knowledge_point_count": doc.knowledge_point_count or 0
+                    }
+                    for doc in document_stats
+                ]
+            }
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting statistics for knowledge base {knowledge_base_id}: {e}")
+            raise
+    
     def create_for_user(self, db: Session, *, obj_in: KnowledgeBaseCreate, user_id: int) -> KnowledgeBase:
         """Create a knowledge base for a specific user"""
         try:
@@ -772,6 +847,8 @@ class CRUDAnswerRecord(CRUDBase[AnswerRecord, None, None]):
             logger.error(f"Error bulk deleting answer records for user {user_id}: {e}")
             db.rollback()
             raise
+            db.rollback()
+            raise
 
 
 class CRUDReviewRecord(CRUDBase[ReviewRecord, None, None]):
@@ -892,9 +969,526 @@ class CRUDReviewRecord(CRUDBase[ReviewRecord, None, None]):
             raise
 
 
+class CRUDKnowledgePoint(CRUDBase[KnowledgePoint, None, None]):
+    """CRUD operations for KnowledgePoint"""
+    
+    def get_by_document(
+        self, 
+        db: Session, 
+        document_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[KnowledgePoint]:
+        """Get knowledge points by document ID with pagination"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(self.model.document_id == document_id)
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting knowledge points for document {document_id}: {e}")
+            raise
+    
+    def count_by_document(self, db: Session, document_id: int) -> int:
+        """Count knowledge points by document ID"""
+        try:
+            return db.query(self.model).filter(self.model.document_id == document_id).count()
+        except SQLAlchemyError as e:
+            logger.error(f"Error counting knowledge points for document {document_id}: {e}")
+            raise
+    
+    def count_by_knowledge_base(self, db: Session, knowledge_base_id: int) -> int:
+        """Count knowledge points by knowledge base ID"""
+        try:
+            return (
+                db.query(self.model)
+                .join(Document)
+                .filter(Document.knowledge_base_id == knowledge_base_id)
+                .count()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error counting knowledge points for knowledge base {knowledge_base_id}: {e}")
+            raise
+    
+    def get_by_knowledge_base(
+        self, 
+        db: Session, 
+        knowledge_base_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[KnowledgePoint]:
+        """Get knowledge points by knowledge base ID through document relationship"""
+        try:
+            return (
+                db.query(self.model)
+                .join(Document)
+                .filter(Document.knowledge_base_id == knowledge_base_id)
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting knowledge points for knowledge base {knowledge_base_id}: {e}")
+            raise
+
+
 # Create instances
 knowledge_base_crud = CRUDKnowledgeBase(KnowledgeBase)
 document_crud = CRUDDocument(Document)
 question_crud = CRUDQuestion(Question)
 answer_record_crud = CRUDAnswerRecord(AnswerRecord)
 review_record_crud = CRUDReviewRecord(ReviewRecord)
+knowledge_point_crud = CRUDKnowledgePoint(KnowledgePoint)
+
+
+class CRUDKnowledgePoint(CRUDBase[KnowledgePoint, None, None]):
+    """CRUD operations for KnowledgePoint"""
+    
+    def get_by_document(
+        self, 
+        db: Session, 
+        document_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[KnowledgePoint]:
+        """Get knowledge points by document ID with pagination"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(self.model.document_id == document_id)
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting knowledge points for document {document_id}: {e}")
+            raise
+    
+    def count_by_document(self, db: Session, document_id: int) -> int:
+        """Count knowledge points by document ID"""
+        try:
+            return db.query(self.model).filter(self.model.document_id == document_id).count()
+        except SQLAlchemyError as e:
+            logger.error(f"Error counting knowledge points for document {document_id}: {e}")
+            raise
+    
+    def get_by_knowledge_base(
+        self, 
+        db: Session, 
+        knowledge_base_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[KnowledgePoint]:
+        """Get knowledge points by knowledge base ID through document relationship"""
+        try:
+            return (
+                db.query(self.model)
+                .join(Document)
+                .filter(Document.knowledge_base_id == knowledge_base_id)
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting knowledge points for knowledge base {knowledge_base_id}: {e}")
+            raise
+    
+    def get_by_documents(
+        self, 
+        db: Session, 
+        document_ids: List[int], 
+        skip: int = 0, 
+        limit: int = 1000
+    ) -> List[KnowledgePoint]:
+        """Get knowledge points by multiple document IDs"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(self.model.document_id.in_(document_ids))
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting knowledge points for documents {document_ids}: {e}")
+            raise
+
+
+class CRUDLearningSet(CRUDBase[None, None, None]):
+    """CRUD operations for LearningSet"""
+    
+    def __init__(self):
+        from .models import LearningSet, LearningSetItem, LearningRecord
+        self.model = LearningSet
+        self.item_model = LearningSetItem
+        self.record_model = LearningRecord
+    
+    def get_by_user(
+        self, 
+        db: Session, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[Any]:
+        """Get learning sets by user ID with pagination"""
+        try:
+            return (
+                db.query(self.model)
+                .filter(self.model.user_id == user_id)
+                .order_by(self.model.created_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting learning sets for user {user_id}: {e}")
+            raise
+    
+    def count_by_user(self, db: Session, user_id: int) -> int:
+        """Count learning sets by user ID"""
+        try:
+            return db.query(self.model).filter(self.model.user_id == user_id).count()
+        except SQLAlchemyError as e:
+            logger.error(f"Error counting learning sets for user {user_id}: {e}")
+            raise
+    
+    def create_with_documents(
+        self, 
+        db: Session, 
+        *, 
+        user_id: int,
+        knowledge_base_id: int,
+        name: str,
+        description: str = None,
+        document_ids: List[int]
+    ) -> Any:
+        """Create a learning set with knowledge points from specified documents"""
+        try:
+            # Create learning set
+            learning_set = self.model(
+                user_id=user_id,
+                knowledge_base_id=knowledge_base_id,
+                name=name,
+                description=description
+            )
+            db.add(learning_set)
+            db.flush()  # Get the ID without committing
+            
+            # Get knowledge points from specified documents
+            knowledge_points = (
+                db.query(KnowledgePoint)
+                .filter(KnowledgePoint.document_id.in_(document_ids))
+                .all()
+            )
+            
+            # Create learning set items
+            for kp in knowledge_points:
+                item = self.item_model(
+                    learning_set_id=learning_set.id,
+                    knowledge_point_id=kp.id
+                )
+                db.add(item)
+                
+                # Create initial learning record
+                record = self.record_model(
+                    user_id=user_id,
+                    knowledge_point_id=kp.id,
+                    learning_set_id=learning_set.id,
+                    mastery_level=0,  # Not learned
+                    review_count=0,
+                    ease_factor=2.5,
+                    interval_days=1
+                )
+                db.add(record)
+            
+            db.commit()
+            db.refresh(learning_set)
+            return learning_set
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error creating learning set with documents: {e}")
+            db.rollback()
+            raise
+    
+    def get_with_statistics(
+        self, 
+        db: Session, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[tuple]:
+        """Get learning sets with statistics"""
+        try:
+            # 简化查询，先获取基本信息，然后单独计算统计
+            learning_sets = (
+                db.query(self.model, KnowledgeBase.name.label('knowledge_base_name'))
+                .join(KnowledgeBase, self.model.knowledge_base_id == KnowledgeBase.id)
+                .filter(self.model.user_id == user_id)
+                .order_by(self.model.created_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+            
+            results = []
+            for ls, kb_name in learning_sets:
+                # 计算总项目数
+                total_items = (
+                    db.query(func.count(self.item_model.id))
+                    .filter(self.item_model.learning_set_id == ls.id)
+                    .scalar() or 0
+                )
+                
+                # 计算各种掌握程度的数量
+                mastered_items = (
+                    db.query(func.count(self.record_model.id))
+                    .filter(
+                        self.record_model.learning_set_id == ls.id,
+                        self.record_model.user_id == user_id,
+                        self.record_model.mastery_level == 2
+                    )
+                    .scalar() or 0
+                )
+                
+                learning_items = (
+                    db.query(func.count(self.record_model.id))
+                    .filter(
+                        self.record_model.learning_set_id == ls.id,
+                        self.record_model.user_id == user_id,
+                        self.record_model.mastery_level == 1
+                    )
+                    .scalar() or 0
+                )
+                
+                new_items = (
+                    db.query(func.count(self.record_model.id))
+                    .filter(
+                        self.record_model.learning_set_id == ls.id,
+                        self.record_model.user_id == user_id,
+                        self.record_model.mastery_level == 0
+                    )
+                    .scalar() or 0
+                )
+                
+                results.append((ls, total_items, mastered_items, learning_items, new_items, kb_name))
+            
+            return results
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting learning sets with statistics for user {user_id}: {e}")
+            raise
+    
+    def get_items_with_progress(
+        self, 
+        db: Session, 
+        learning_set_id: int, 
+        user_id: int,
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[tuple]:
+        """Get learning set items with progress information"""
+        try:
+            return (
+                db.query(
+                    self.item_model,
+                    KnowledgePoint,
+                    self.record_model.mastery_level,
+                    self.record_model.review_count,
+                    self.record_model.next_review,
+                    self.record_model.last_reviewed
+                )
+                .select_from(self.item_model)
+                .join(KnowledgePoint, self.item_model.knowledge_point_id == KnowledgePoint.id)
+                .outerjoin(self.record_model, 
+                          (self.item_model.knowledge_point_id == self.record_model.knowledge_point_id) &
+                          (self.item_model.learning_set_id == self.record_model.learning_set_id) &
+                          (self.record_model.user_id == user_id))
+                .filter(self.item_model.learning_set_id == learning_set_id)
+                .order_by(self.item_model.added_at)
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting items with progress for learning set {learning_set_id}: {e}")
+            raise
+    
+    def get_due_items(
+        self, 
+        db: Session, 
+        learning_set_id: int, 
+        user_id: int
+    ) -> List[tuple]:
+        """Get knowledge points due for review in a learning set"""
+        try:
+            from datetime import datetime
+            now = datetime.now()
+            
+            return (
+                db.query(
+                    KnowledgePoint,
+                    self.record_model
+                )
+                .select_from(self.item_model)
+                .join(KnowledgePoint, self.item_model.knowledge_point_id == KnowledgePoint.id)
+                .join(self.record_model, 
+                      (self.item_model.knowledge_point_id == self.record_model.knowledge_point_id) &
+                      (self.item_model.learning_set_id == self.record_model.learning_set_id) &
+                      (self.record_model.user_id == user_id))
+                .filter(
+                    self.item_model.learning_set_id == learning_set_id,
+                    func.coalesce(self.record_model.next_review, now) <= now
+                )
+                .order_by(self.record_model.next_review.asc().nullsfirst())
+                .all()
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting due items for learning set {learning_set_id}: {e}")
+            raise
+    
+    def delete_with_items(self, db: Session, learning_set_id: int, user_id: int) -> bool:
+        """Delete a learning set and all its items and records"""
+        try:
+            # Verify ownership
+            learning_set = (
+                db.query(self.model)
+                .filter(self.model.id == learning_set_id, self.model.user_id == user_id)
+                .first()
+            )
+            
+            if not learning_set:
+                return False
+            
+            # Delete learning records
+            db.query(self.record_model).filter(
+                self.record_model.learning_set_id == learning_set_id,
+                self.record_model.user_id == user_id
+            ).delete()
+            
+            # Delete learning set items
+            db.query(self.item_model).filter(
+                self.item_model.learning_set_id == learning_set_id
+            ).delete()
+            
+            # Delete learning set
+            db.delete(learning_set)
+            db.commit()
+            return True
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error deleting learning set {learning_set_id}: {e}")
+            db.rollback()
+            raise
+
+
+class CRUDLearningRecord(CRUDBase[None, None, None]):
+    """CRUD operations for LearningRecord"""
+    
+    def __init__(self):
+        from .models import LearningRecord
+        self.model = LearningRecord
+    
+    def get_or_create(
+        self, 
+        db: Session, 
+        *, 
+        user_id: int,
+        knowledge_point_id: int,
+        learning_set_id: int
+    ) -> Any:
+        """Get existing learning record or create a new one"""
+        try:
+            # Try to get existing record
+            record = (
+                db.query(self.model)
+                .filter(
+                    self.model.user_id == user_id,
+                    self.model.knowledge_point_id == knowledge_point_id,
+                    self.model.learning_set_id == learning_set_id
+                )
+                .first()
+            )
+            
+            if record:
+                return record
+            
+            # Create new record
+            record = self.model(
+                user_id=user_id,
+                knowledge_point_id=knowledge_point_id,
+                learning_set_id=learning_set_id,
+                mastery_level=0,
+                review_count=0,
+                ease_factor=2.5,
+                interval_days=1
+            )
+            db.add(record)
+            db.commit()
+            db.refresh(record)
+            return record
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting or creating learning record: {e}")
+            db.rollback()
+            raise
+    
+    def update_mastery(
+        self, 
+        db: Session, 
+        *, 
+        user_id: int,
+        knowledge_point_id: int,
+        learning_set_id: int,
+        mastery_level: int
+    ) -> Any:
+        """Update mastery level and calculate next review time"""
+        try:
+            from datetime import datetime, timedelta
+            
+            record = self.get_or_create(
+                db=db,
+                user_id=user_id,
+                knowledge_point_id=knowledge_point_id,
+                learning_set_id=learning_set_id
+            )
+            
+            # Update mastery level
+            record.mastery_level = mastery_level
+            record.review_count += 1
+            record.last_reviewed = datetime.now()
+            
+            # Calculate next review time using simplified SM-2 algorithm
+            if mastery_level == 0:  # Not learned
+                record.interval_days = 1
+                record.ease_factor = max(1.3, record.ease_factor - 0.2)
+            elif mastery_level == 1:  # Learning
+                record.interval_days = max(1, int(record.interval_days * record.ease_factor))
+                record.ease_factor = max(1.3, record.ease_factor - 0.15)
+            else:  # Mastered
+                record.interval_days = int(record.interval_days * record.ease_factor)
+                record.ease_factor = min(3.0, record.ease_factor + 0.1)
+            
+            # Set next review date
+            record.next_review = record.last_reviewed + timedelta(days=record.interval_days)
+            
+            db.commit()
+            db.refresh(record)
+            return record
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating mastery for learning record: {e}")
+            db.rollback()
+            raise
+
+
+# Create CRUD instances
+knowledge_base_crud = CRUDKnowledgeBase(KnowledgeBase)
+document_crud = CRUDDocument(Document)
+question_crud = CRUDQuestion(Question)
+answer_record_crud = CRUDAnswerRecord(AnswerRecord)
+knowledge_point_crud = CRUDKnowledgePoint(KnowledgePoint)
+learning_set_crud = CRUDLearningSet()
+learning_record_crud = CRUDLearningRecord()

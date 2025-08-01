@@ -39,6 +39,7 @@ class DocumentResponse(DocumentBase):
     file_path: str
     processed: bool
     created_at: datetime
+    knowledge_point_count: Optional[int] = 0
     
     class Config:
         from_attributes = True
@@ -91,6 +92,7 @@ class KnowledgeBaseResponse(KnowledgeBaseBase):
     created_at: datetime
     updated_at: datetime
     document_count: Optional[int] = 0
+    knowledge_point_count: Optional[int] = 0
     
     class Config:
         from_attributes = True
@@ -107,3 +109,18 @@ class KnowledgeBaseListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class DocumentStatistics(BaseModel):
+    """Schema for document statistics"""
+    id: int
+    filename: str
+    knowledge_point_count: int
+
+
+class KnowledgeBaseStatistics(BaseModel):
+    """Schema for knowledge base statistics"""
+    knowledge_base_id: int
+    total_documents: int
+    total_knowledge_points: int
+    documents: List[DocumentStatistics]
