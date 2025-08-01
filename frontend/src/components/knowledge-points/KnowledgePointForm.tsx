@@ -31,6 +31,7 @@ interface KnowledgePointFormProps {
 interface FormValues {
   document_id: number;
   title: string;
+  question: string;
   content: string;
   importance_level: number;
 }
@@ -101,6 +102,7 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
       form.setFieldsValue({
         document_id: knowledgePoint.document_id,
         title: knowledgePoint.title,
+        question: knowledgePoint.question || '',
         content: knowledgePoint.content,
         importance_level: knowledgePoint.importance_level,
       });

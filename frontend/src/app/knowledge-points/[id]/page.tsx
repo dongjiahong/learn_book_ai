@@ -209,6 +209,31 @@ const KnowledgePointDetailPage: React.FC = () => {
 
                   <Divider />
 
+                  {/* 知识点提问 */}
+                  {knowledgePoint.question && (
+                    <div>
+                      <Title level={4} style={{ marginBottom: 16 }}>
+                        相关提问
+                      </Title>
+                      <Card 
+                        style={{ 
+                          backgroundColor: '#f6f8fa',
+                          border: '1px solid #e1e4e8',
+                          marginBottom: 24
+                        }}
+                      >
+                        <div style={{ 
+                          lineHeight: '1.6',
+                          fontSize: '15px',
+                          color: '#24292e',
+                          fontStyle: 'italic'
+                        }}>
+                          {knowledgePoint.question}
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+
                   {/* 知识点内容 */}
                   <div>
                     <Title level={4} style={{ marginBottom: 16 }}>

@@ -193,7 +193,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
       title: '标题',
       dataIndex: 'title',
       key: 'title',
-      width: 200,
+      width: 180,
       ellipsis: true,
       render: (text: string, record: KnowledgePoint) => (
         <Button
@@ -206,13 +206,29 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
       ),
     },
     {
+      title: '提问',
+      dataIndex: 'question',
+      key: 'question',
+      width: 200,
+      ellipsis: true,
+      render: (text: string) => (
+        text ? (
+          <Text type="secondary" style={{ fontStyle: 'italic' }}>
+            {text.length > 80 ? `${text.substring(0, 80)}...` : text}
+          </Text>
+        ) : (
+          <Text type="secondary" disabled>暂无提问</Text>
+        )
+      ),
+    },
+    {
       title: '内容预览',
       dataIndex: 'content',
       key: 'content',
       ellipsis: true,
       render: (text: string) => (
         <Text type="secondary">
-          {text.length > 100 ? `${text.substring(0, 100)}...` : text}
+          {text.length > 80 ? `${text.substring(0, 80)}...` : text}
         </Text>
       ),
     },
