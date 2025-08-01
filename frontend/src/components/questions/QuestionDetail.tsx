@@ -325,14 +325,7 @@ export function QuestionDetail({ question, onBack, onUpdate }: QuestionDetailPro
           {/* Quick Actions */}
           <Card title="快速操作" size="small" className="mt-4">
             <Space direction="vertical" className="w-full">
-              <Button
-                block
-                type="primary"
-                icon={<QuestionCircleOutlined />}
-                onClick={() => window.open(`/practice?question=${question.id}`, '_blank')}
-              >
-                开始答题
-              </Button>
+
               <Button
                 block
                 icon={<FileTextOutlined />}

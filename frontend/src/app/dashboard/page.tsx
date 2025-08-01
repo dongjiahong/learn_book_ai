@@ -114,10 +114,10 @@ function DashboardContent() {
     },
     {
       title: '开始学习',
-      description: '系统将自动生成问题帮助您学习文档内容',
+      description: '通过学习集进行基于记忆曲线的学习',
       icon: <PlayCircleOutlined className="text-orange-500" />,
-      action: () => handleQuickAction('答题练习', '/practice'),
-      buttonText: '开始练习',
+      action: () => handleQuickAction('学习集管理', '/learning-sets'),
+      buttonText: '开始学习',
       buttonIcon: <PlayCircleOutlined />,
     },
   ];
@@ -248,7 +248,7 @@ function DashboardContent() {
                   image={<ClockCircleOutlined className="text-4xl text-gray-300" />}
                   action={{
                     text: '开始学习',
-                    onClick: () => handleQuickAction('答题练习', '/practice'),
+                    onClick: () => handleQuickAction('学习集管理', '/learning-sets'),
                     icon: <PlayCircleOutlined />,
                   }}
                 />

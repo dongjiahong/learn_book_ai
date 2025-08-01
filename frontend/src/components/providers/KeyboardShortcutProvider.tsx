@@ -50,12 +50,7 @@ export const KeyboardShortcutProvider: React.FC<KeyboardShortcutProviderProps> =
       description: '前往问题管理',
       action: () => router.push('/questions'),
     },
-    {
-      key: 'p',
-      ctrlKey: true,
-      description: '前往答题练习',
-      action: () => router.push('/practice'),
-    },
+
     {
       key: 'r',
       ctrlKey: true,
