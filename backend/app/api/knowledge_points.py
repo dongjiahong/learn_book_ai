@@ -84,6 +84,7 @@ async def get_knowledge_points(
 ) -> Dict[str, Any]:
     """Get knowledge points with filtering options"""
     try:
+        # Get knowledge points
         knowledge_points = knowledge_point_service.get_knowledge_points(
             db=db,
             document_id=document_id,
@@ -94,10 +95,20 @@ async def get_knowledge_points(
             limit=limit
         )
         
+        # Get total count
+        total_count = knowledge_point_service.get_knowledge_points_count(
+            db=db,
+            document_id=document_id,
+            knowledge_base_id=knowledge_base_id,
+            importance_level=importance_level,
+            search_query=search_query
+        )
+        
         return {
             "success": True,
             "knowledge_points": knowledge_points,
-            "count": len(knowledge_points),
+            "count": total_count,
+            "page_count": len(knowledge_points),
             "filters": {
                 "document_id": document_id,
                 "knowledge_base_id": knowledge_base_id,

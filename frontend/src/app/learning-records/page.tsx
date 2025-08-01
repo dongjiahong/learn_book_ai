@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Tabs, message, Typography } from 'antd';
+import { Card, Tabs, Typography, App } from 'antd';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ResponsiveLayout } from '@/components/layout/ResponsiveLayout';
 import { useAuthStore } from '@/stores/authStore';
@@ -13,6 +13,7 @@ import ReviewRecordsList from '@/components/learning/ReviewRecordsList';
 const { Title, Paragraph } = Typography;
 
 export default function LearningRecordsPage() {
+  const { message } = App.useApp();
   const { tokens } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<LearningProgressResponse | null>(null);
@@ -30,7 +31,7 @@ export default function LearningRecordsPage() {
     } finally {
       setLoading(false);
     }
-  }, [tokens?.access_token]);
+  }, [tokens?.access_token, message]);
 
   useEffect(() => {
     loadLearningProgress();

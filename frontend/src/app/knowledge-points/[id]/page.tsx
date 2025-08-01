@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Card,
@@ -9,12 +9,12 @@ import {
   Button,
   Tag,
   Spin,
-  message,
   Row,
   Col,
   Divider,
   Breadcrumb,
   Modal,
+  App,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -35,6 +35,7 @@ import ReactMarkdown from 'react-markdown';
 const { Title, Text, Paragraph } = Typography;
 
 const KnowledgePointDetailPage: React.FC = () => {
+  const { message } = App.useApp();
   const params = useParams();
   const router = useRouter();
   const { tokens } = useAuthStore();
@@ -48,13 +49,7 @@ const KnowledgePointDetailPage: React.FC = () => {
 
   const knowledgePointId = params?.id as string;
 
-  useEffect(() => {
-    if (knowledgePointId && token) {
-      loadKnowledgePointDetail();
-    }
-  }, [knowledgePointId, token]);
-
-  const loadKnowledgePointDetail = async () => {
+  const loadKnowledgePointDetail = useCallback(async () => {
     if (!token || !knowledgePointId) return;
 
     setLoading(true);
@@ -80,7 +75,13 @@ const KnowledgePointDetailPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, knowledgePointId, message, router]);
+
+  useEffect(() => {
+    if (knowledgePointId && token) {
+      loadKnowledgePointDetail();
+    }
+  }, [knowledgePointId, token, loadKnowledgePointDetail]);
 
   const handleDelete = async () => {
     if (!token || !knowledgePointId) return;

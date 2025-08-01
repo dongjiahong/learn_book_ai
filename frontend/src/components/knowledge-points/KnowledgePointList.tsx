@@ -7,8 +7,6 @@ import {
   Button,
   Space,
   Tag,
-  Modal,
-  message,
   Card,
   Typography,
   Tooltip,
@@ -18,6 +16,7 @@ import {
   Col,
   Statistic,
   Empty,
+  App,
 } from 'antd';
 import {
   EditOutlined,
@@ -29,7 +28,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { apiClient, KnowledgePoint, KnowledgeBase } from '@/lib/api';
 import KnowledgePointForm from './KnowledgePointForm';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 interface KnowledgePointListProps {
   knowledgeBaseId?: number;
@@ -39,12 +38,7 @@ interface KnowledgePointListProps {
   refreshTrigger?: number;
 }
 
-interface FilterState {
-  searchQuery: string;
-  importanceLevel: number | undefined;
-  knowledgeBaseId: number | undefined;
-  documentId: number | undefined;
-}
+
 
 const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   knowledgeBaseId,
@@ -56,6 +50,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   const router = useRouter();
   const { tokens } = useAuthStore();
   const token = tokens?.access_token;
+  const { message } = App.useApp();
   const [knowledgePoints, setKnowledgePoints] = useState<KnowledgePoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -65,12 +60,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     by_importance_level: Record<string, number>;
   } | null>(null);
   
-  const [filters] = useState<FilterState>({
-    searchQuery: '',
-    importanceLevel: undefined,
-    knowledgeBaseId: knowledgeBaseId,
-    documentId: documentId,
-  });
+
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -78,36 +68,43 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     total: 0,
   });
 
+
+
   // Modal states
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState<KnowledgePoint | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
-  const loadKnowledgePoints = useCallback(async () => {
+  const loadKnowledgePoints = useCallback(async (page = 1, pageSize = 20) => {
     if (!token) return;
 
     setLoading(true);
     try {
       const response = await apiClient.getKnowledgePoints(token, {
-        document_id: filters.documentId,
-        knowledge_base_id: filters.knowledgeBaseId,
-        importance_level: filters.importanceLevel,
-        search_query: filters.searchQuery || undefined,
-        skip: (pagination.current - 1) * pagination.pageSize,
-        limit: pagination.pageSize,
+        document_id: documentId,
+        knowledge_base_id: knowledgeBaseId,
+        importance_level: undefined,
+        search_query: undefined,
+        skip: (page - 1) * pageSize,
+        limit: pageSize,
       });
 
       setKnowledgePoints(response.knowledge_points);
-      setPagination(prev => ({
-        ...prev,
+      setPagination({
+        current: page,
+        pageSize: pageSize,
         total: response.count,
-      }));
+      });
     } catch (error) {
       console.error('Failed to load knowledge points:', error);
       message.error('加载知识点失败');
     } finally {
       setLoading(false);
     }
-  }, [token, filters.documentId, filters.knowledgeBaseId, filters.importanceLevel, filters.searchQuery, pagination.current, pagination.pageSize]);
+  }, [token, documentId, knowledgeBaseId, message]);
+
+  const handlePaginationChange = useCallback((page: number, pageSize?: number) => {
+    loadKnowledgePoints(page, pageSize || pagination.pageSize);
+  }, [loadKnowledgePoints, pagination.pageSize]);
 
   const loadKnowledgeBases = useCallback(async () => {
     if (!token) return;
@@ -126,16 +123,16 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     try {
       const response = await apiClient.getKnowledgePointStatistics(
         token,
-        filters.knowledgeBaseId
+        knowledgeBaseId
       );
       setStatistics(response.statistics);
     } catch (error) {
       console.error('Failed to load statistics:', error);
     }
-  }, [token, filters.knowledgeBaseId]);
+  }, [token, knowledgeBaseId]);
 
   useEffect(() => {
-    loadKnowledgePoints();
+    loadKnowledgePoints(1, 20);
     loadKnowledgeBases();
     loadStatistics();
   }, [loadKnowledgePoints, loadKnowledgeBases, loadStatistics]);
@@ -143,10 +140,12 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   // Refresh when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      loadKnowledgePoints();
+      loadKnowledgePoints(pagination.current, pagination.pageSize);
       loadStatistics();
     }
-  }, [refreshTrigger, loadKnowledgePoints, loadStatistics]);
+  }, [refreshTrigger, loadKnowledgePoints, loadStatistics, pagination.pageSize, pagination]);
+
+
 
   const handleDelete = async (id: number) => {
     if (!token) return;
@@ -154,7 +153,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
     try {
       await apiClient.deleteKnowledgePoint(token, id);
       message.success('知识点删除成功');
-      loadKnowledgePoints();
+      loadKnowledgePoints(pagination.current, pagination.pageSize);
       loadStatistics();
     } catch (error) {
       console.error('Failed to delete knowledge point:', error);
@@ -169,7 +168,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
       await apiClient.batchDeleteKnowledgePoints(token, selectedRowKeys as number[]);
       message.success(`成功删除 ${selectedRowKeys.length} 个知识点`);
       setSelectedRowKeys([]);
-      loadKnowledgePoints();
+      loadKnowledgePoints(pagination.current, pagination.pageSize);
       loadStatistics();
     } catch (error) {
       console.error('Failed to batch delete knowledge points:', error);
@@ -362,17 +361,14 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
           loading={loading}
           rowSelection={rowSelection}
           pagination={{
-            ...pagination,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-            onChange: (page, pageSize) => {
-              setPagination(prev => ({
-                ...prev,
-                current: page,
-                pageSize: pageSize || prev.pageSize,
-              }));
-            },
+            onChange: handlePaginationChange,
+            onShowSizeChange: handlePaginationChange,
           }}
           scroll={{ y: height }}
           locale={{
@@ -394,7 +390,7 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
           visible={editModalVisible}
           onCancel={() => setEditModalVisible(false)}
           onSuccess={() => {
-            loadKnowledgePoints();
+            loadKnowledgePoints(pagination.current, pagination.pageSize);
             loadStatistics();
           }}
           knowledgePoint={selectedKnowledgePoint}

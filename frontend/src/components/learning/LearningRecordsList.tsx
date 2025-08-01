@@ -11,12 +11,12 @@ import {
   Space,
   Tag,
   Modal,
-  message,
   Tooltip,
   Popconfirm,
   Row,
   Col,
   Drawer,
+  App,
 } from 'antd';
 import {
   SearchOutlined,
@@ -44,6 +44,7 @@ export default function LearningRecordsList({
   onRecordUpdate,
   recentRecords
 }: LearningRecordsListProps) {
+  const { message } = App.useApp();
   const { tokens } = useAuthStore();
   const [records, setRecords] = useState<LearningAnswerRecord[]>([]);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
@@ -71,7 +72,7 @@ export default function LearningRecordsList({
       loadKnowledgeBases();
       loadRecords();
     }
-  }, [tokens]);
+  }, [tokens?.access_token]);
 
   useEffect(() => {
     if (recentRecords) {

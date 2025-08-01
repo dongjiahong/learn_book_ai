@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Button, Typography, Space, Progress, Rate, message, Divider, Tag, Alert } from 'antd';
+import { Card, Button, Typography, Space, Progress, Rate, Divider, Tag, Alert, App } from 'antd';
 import { ArrowLeftOutlined, BookOutlined, BulbOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { DueReviewItem } from '@/lib/api';
 
@@ -24,6 +24,7 @@ const qualityDescriptions = {
 };
 
 export default function ReviewSession({ reviewItem, onComplete, onExit, remainingCount }: ReviewSessionProps) {
+  const { message } = App.useApp();
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState<number | null>(null);
 

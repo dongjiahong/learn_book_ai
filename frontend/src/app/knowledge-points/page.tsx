@@ -11,8 +11,8 @@ import {
   Button,
   Modal,
   Select,
-  message,
   Input,
+  App,
 } from 'antd';
 import {
   BookOutlined,
@@ -32,6 +32,7 @@ const { Option } = Select;
 const { Search } = Input;
 
 const KnowledgePointsPage: React.FC = () => {
+  const { message } = App.useApp();
   const { tokens } = useAuthStore();
   const token = tokens?.access_token;
   const [activeTab, setActiveTab] = useState('list');
@@ -63,7 +64,7 @@ const KnowledgePointsPage: React.FC = () => {
     };
 
     loadKnowledgeBases();
-  }, [token]);
+  }, [token, message]);
 
   const handleKnowledgePointSelect = (kpId: number) => {
     // 直接跳转到详情页面

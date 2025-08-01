@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { Card, Typography, Space, Statistic, Button, Spin, message } from 'antd';
+import { Card, Typography, Space, Statistic, Button, Spin, App } from 'antd';
 import { 
   FolderOutlined, 
   FileTextOutlined, 
@@ -15,7 +15,7 @@ import {
   PlayCircleOutlined
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -33,13 +33,14 @@ import { apiClient, DashboardStats } from '@/lib/api';
 const { Title, Text } = Typography;
 
 function DashboardContent() {
+  const { message } = App.useApp();
   const { user, tokens } = useAuth();
   const router = useRouter();
   const notification = useNotification();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     if (!tokens?.access_token) return;
 
     try {
@@ -52,11 +53,11 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tokens?.access_token, message]);
 
   useEffect(() => {
     fetchDashboardStats();
-  }, [tokens]);
+  }, [fetchDashboardStats]);
 
   const handleQuickAction = (action: string, path: string) => {
     notification.info(`正在前往${action}...`);

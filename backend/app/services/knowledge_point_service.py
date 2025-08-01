@@ -252,6 +252,57 @@ class KnowledgePointService:
             logger.error(f"Failed to get knowledge points: {e}")
             raise
     
+    def get_knowledge_points_count(
+        self,
+        db: Session,
+        document_id: Optional[int] = None,
+        knowledge_base_id: Optional[int] = None,
+        importance_level: Optional[int] = None,
+        search_query: Optional[str] = None
+    ) -> int:
+        """
+        Get total count of knowledge points with filtering options
+        
+        Args:
+            db: Database session
+            document_id: Filter by document ID
+            knowledge_base_id: Filter by knowledge base ID
+            importance_level: Filter by minimum importance level
+            search_query: Search in title and content
+            
+        Returns:
+            Total count of knowledge points matching the filters
+        """
+        try:
+            query = db.query(KnowledgePoint)
+            
+            # Apply filters (same as get_knowledge_points)
+            if document_id:
+                query = query.filter(KnowledgePoint.document_id == document_id)
+            
+            if knowledge_base_id:
+                query = query.join(Document).filter(
+                    Document.knowledge_base_id == knowledge_base_id
+                )
+            
+            if importance_level:
+                query = query.filter(KnowledgePoint.importance_level >= importance_level)
+            
+            if search_query:
+                search_term = f"%{search_query}%"
+                query = query.filter(
+                    or_(
+                        KnowledgePoint.title.ilike(search_term),
+                        KnowledgePoint.content.ilike(search_term)
+                    )
+                )
+            
+            return query.count()
+            
+        except Exception as e:
+            logger.error(f"Failed to get knowledge points count: {e}")
+            raise
+    
     def get_knowledge_point_by_id(self, db: Session, kp_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific knowledge point by ID"""
         try:
