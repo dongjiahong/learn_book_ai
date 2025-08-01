@@ -11,7 +11,7 @@ from ..core.middleware import get_current_user
 from ..models.database import get_db
 from ..models.models import User
 from ..services.knowledge_point_service import knowledge_point_service
-from ..schemas.knowledge_points import KnowledgePointSearchRequest
+from ..schemas.knowledge_points import KnowledgePointSearchRequest, BatchDeleteRequest
 
 router = APIRouter(prefix="/api/knowledge-points", tags=["knowledge-points"])
 
@@ -172,33 +172,6 @@ async def update_knowledge_point(
         raise HTTPException(status_code=500, detail=f"Failed to update knowledge point: {str(e)}")
 
 
-@router.delete("/{kp_id}")
-async def delete_knowledge_point(
-    kp_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """Delete a knowledge point"""
-    try:
-        success = knowledge_point_service.delete_knowledge_point(db=db, kp_id=kp_id)
-        
-        if not success:
-            raise HTTPException(status_code=404, detail="Knowledge point not found")
-        
-        return {
-            "success": True,
-            "message": "Knowledge point deleted successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete knowledge point: {str(e)}")
-
-
-
-
-
 @router.post("/search")
 async def search_knowledge_points(
     search_request: KnowledgePointSearchRequest = Body(...),
@@ -337,17 +310,13 @@ async def batch_extract_knowledge_points(
 
 @router.delete("/batch")
 async def batch_delete_knowledge_points(
-    kp_ids: List[int],
+    request: BatchDeleteRequest = Body(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """Delete multiple knowledge points"""
     try:
-        if not kp_ids:
-            raise HTTPException(status_code=400, detail="Knowledge point IDs list cannot be empty")
-        
-        if len(kp_ids) > 100:
-            raise HTTPException(status_code=400, detail="Cannot delete more than 100 knowledge points at once")
+        kp_ids = request.kp_ids
         
         deleted_count = 0
         errors = []
@@ -373,3 +342,27 @@ async def batch_delete_knowledge_points(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to batch delete knowledge points: {str(e)}")
+
+
+@router.delete("/{kp_id}")
+async def delete_knowledge_point(
+    kp_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Delete a knowledge point"""
+    try:
+        success = knowledge_point_service.delete_knowledge_point(db=db, kp_id=kp_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Knowledge point not found")
+        
+        return {
+            "success": True,
+            "message": "Knowledge point deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete knowledge point: {str(e)}")

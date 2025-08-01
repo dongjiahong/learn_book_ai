@@ -56,3 +56,8 @@ class KnowledgePointSearchResult(BaseModel):
     content: str
     metadata: dict
     id: str
+
+
+class BatchDeleteRequest(BaseModel):
+    """Schema for batch delete request"""
+    kp_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of knowledge point IDs to delete")
