@@ -1,262 +1,182 @@
 """
-Spaced Repetition Service implementing Anki's SM-2 algorithm
+Spaced Repetition Service implementing SuperMemo SM-2 algorithm
 """
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
-
-from ..models.models import ReviewRecord, Question, KnowledgePoint, User
-from ..models.database import get_db
+from typing import Tuple
+import math
 
 
 class SpacedRepetitionService:
-    """Service for managing spaced repetition learning using Anki's SM-2 algorithm"""
+    """Service for calculating spaced repetition intervals using SuperMemo SM-2 algorithm"""
     
-    def __init__(self, db: Session):
-        self.db = db
+    # Quality ratings mapping
+    QUALITY_RATINGS = {
+        0: 0,  # 不会 - Complete blackout
+        1: 3,  # 学习中 - Correct response recalled with serious difficulty  
+        2: 5   # 已学会 - Perfect response
+    }
     
-    def calculate_next_review(self, ease_factor: float, interval_days: int, quality: int) -> tuple[float, int]:
+    @staticmethod
+    def calculate_next_review(
+        mastery_level: int,
+        current_ease_factor: float = 2.5,
+        current_interval: int = 1,
+        review_count: int = 0
+    ) -> Tuple[int, float, datetime]:
         """
-        Calculate next review interval using SM-2 algorithm
+        Calculate next review interval using SuperMemo SM-2 algorithm
         
         Args:
-            ease_factor: Current ease factor (default 2.5)
-            interval_days: Current interval in days
-            quality: Quality of recall (0-5, where 3+ is passing)
+            mastery_level: User's mastery level (0: 不会, 1: 学习中, 2: 已学会)
+            current_ease_factor: Current ease factor (1.3 - 3.0)
+            current_interval: Current interval in days
+            review_count: Number of times reviewed
             
         Returns:
-            tuple: (new_ease_factor, new_interval_days)
+            Tuple of (new_interval_days, new_ease_factor, next_review_datetime)
         """
-        # SM-2 Algorithm implementation
-        if quality < 3:
-            # Failed recall - reset interval to 1 day
-            new_interval = 1
-            new_ease_factor = ease_factor
+        # Map mastery level to quality rating
+        quality = SpacedRepetitionService.QUALITY_RATINGS.get(mastery_level, 0)
+        
+        # Calculate new ease factor
+        new_ease_factor = current_ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+        new_ease_factor = max(1.3, new_ease_factor)  # Minimum ease factor is 1.3
+        
+        # Calculate new interval
+        if quality < 3:  # If quality is less than 3 (not well remembered)
+            new_interval = 1  # Start over
         else:
-            # Successful recall
-            if interval_days == 1:
+            if review_count == 0:
+                new_interval = 1
+            elif review_count == 1:
                 new_interval = 6
-            elif interval_days == 6:
-                new_interval = 16
             else:
-                new_interval = int(interval_days * ease_factor)
-            
-            # Update ease factor based on quality
-            new_ease_factor = ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-            
-            # Ensure ease factor doesn't go below 1.3
-            new_ease_factor = max(1.3, new_ease_factor)
+                new_interval = math.ceil(current_interval * new_ease_factor)
         
-        return new_ease_factor, new_interval
+        # Calculate next review date
+        next_review = datetime.now() + timedelta(days=new_interval)
+        
+        return new_interval, new_ease_factor, next_review
     
-    def get_or_create_review_record(self, user_id: int, content_id: int, content_type: str) -> ReviewRecord:
-        """Get existing review record or create a new one"""
-        review_record = self.db.query(ReviewRecord).filter(
-            and_(
-                ReviewRecord.user_id == user_id,
-                ReviewRecord.content_id == content_id,
-                ReviewRecord.content_type == content_type
-            )
-        ).first()
+    @staticmethod
+    def get_initial_values() -> Tuple[int, float, datetime]:
+        """
+        Get initial values for a new learning record
         
-        if not review_record:
-            # Create new review record
-            review_record = ReviewRecord(
-                user_id=user_id,
-                content_id=content_id,
-                content_type=content_type,
-                review_count=0,
-                ease_factor=2.5,
-                interval_days=1,
-                next_review=datetime.utcnow()
-            )
-            self.db.add(review_record)
-            self.db.commit()
-            self.db.refresh(review_record)
-        
-        return review_record
+        Returns:
+            Tuple of (initial_interval, initial_ease_factor, initial_next_review)
+        """
+        return 1, 2.5, datetime.now() + timedelta(days=1)
     
-    def update_review_record(self, user_id: int, content_id: int, content_type: str, quality: int) -> ReviewRecord:
-        """Update review record after a review session"""
-        review_record = self.get_or_create_review_record(user_id, content_id, content_type)
+    @staticmethod
+    def is_due_for_review(next_review: datetime) -> bool:
+        """
+        Check if a knowledge point is due for review
         
-        # Calculate new parameters
-        new_ease_factor, new_interval = self.calculate_next_review(
-            review_record.ease_factor,
-            review_record.interval_days,
-            quality
-        )
-        
-        # Update record
-        review_record.review_count += 1
-        review_record.last_reviewed = datetime.utcnow()
-        review_record.next_review = datetime.utcnow() + timedelta(days=new_interval)
-        review_record.ease_factor = new_ease_factor
-        review_record.interval_days = new_interval
-        
-        self.db.commit()
-        self.db.refresh(review_record)
-        
-        return review_record
-    
-    def get_due_reviews(self, user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get items due for review"""
-        now = datetime.utcnow()
-        
-        # Get due review records
-        due_records = self.db.query(ReviewRecord).filter(
-            and_(
-                ReviewRecord.user_id == user_id,
-                ReviewRecord.next_review <= now
-            )
-        ).order_by(ReviewRecord.next_review).limit(limit).all()
-        
-        result = []
-        for record in due_records:
-            item_data = {
-                'review_record_id': record.id,
-                'content_id': record.content_id,
-                'content_type': record.content_type,
-                'review_count': record.review_count,
-                'last_reviewed': record.last_reviewed,
-                'next_review': record.next_review,
-                'ease_factor': record.ease_factor,
-                'interval_days': record.interval_days
-            }
+        Args:
+            next_review: Next scheduled review datetime
             
-            # Get the actual content
-            if record.content_type == 'question':
-                question = self.db.query(Question).filter(Question.id == record.content_id).first()
-                if question:
-                    item_data.update({
-                        'question_text': question.question_text,
-                        'context': question.context,
-                        'difficulty_level': question.difficulty_level,
-                        'document_id': question.document_id
-                    })
-            elif record.content_type == 'knowledge_point':
-                knowledge_point = self.db.query(KnowledgePoint).filter(
-                    KnowledgePoint.id == record.content_id
-                ).first()
-                if knowledge_point:
-                    item_data.update({
-                        'title': knowledge_point.title,
-                        'content': knowledge_point.content,
-                        'importance_level': knowledge_point.importance_level,
-                        'document_id': knowledge_point.document_id
-                    })
-            
-            result.append(item_data)
-        
-        return result
+        Returns:
+            True if due for review, False otherwise
+        """
+        return datetime.now() >= next_review
     
-    def get_review_statistics(self, user_id: int) -> Dict[str, Any]:
-        """Get review statistics for a user"""
-        now = datetime.utcnow()
+    @staticmethod
+    def calculate_retention_rate(
+        mastery_level: int,
+        days_since_last_review: int,
+        ease_factor: float
+    ) -> float:
+        """
+        Estimate retention rate based on forgetting curve
         
-        # Total review records
-        total_records = self.db.query(ReviewRecord).filter(ReviewRecord.user_id == user_id).count()
+        Args:
+            mastery_level: Current mastery level
+            days_since_last_review: Days since last review
+            ease_factor: Current ease factor
+            
+        Returns:
+            Estimated retention rate (0.0 - 1.0)
+        """
+        if mastery_level == 0:  # Not learned
+            return 0.0
+        elif mastery_level == 2:  # Mastered
+            base_retention = 0.9
+        else:  # Learning
+            base_retention = 0.7
         
-        # Due today
-        due_today = self.db.query(ReviewRecord).filter(
-            and_(
-                ReviewRecord.user_id == user_id,
-                ReviewRecord.next_review <= now
-            )
-        ).count()
+        # Apply forgetting curve: R(t) = R0 * e^(-t/S)
+        # Where S is stability factor related to ease_factor
+        stability = ease_factor * 2  # Simple mapping
+        retention = base_retention * math.exp(-days_since_last_review / stability)
         
-        # Due this week
-        week_from_now = now + timedelta(days=7)
-        due_this_week = self.db.query(ReviewRecord).filter(
-            and_(
-                ReviewRecord.user_id == user_id,
-                ReviewRecord.next_review <= week_from_now,
-                ReviewRecord.next_review > now
-            )
-        ).count()
+        return max(0.0, min(1.0, retention))
+    
+    @staticmethod
+    def get_study_priority(
+        mastery_level: int,
+        next_review: datetime,
+        importance_level: int = 1
+    ) -> float:
+        """
+        Calculate study priority for a knowledge point
         
-        # Reviews completed today
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        completed_today = self.db.query(ReviewRecord).filter(
-            and_(
-                ReviewRecord.user_id == user_id,
-                ReviewRecord.last_reviewed >= today_start
-            )
-        ).count()
+        Args:
+            mastery_level: Current mastery level
+            next_review: Next scheduled review datetime
+            importance_level: Importance level of the knowledge point (1-5)
+            
+        Returns:
+            Priority score (higher = more urgent)
+        """
+        now = datetime.now()
         
-        # Average ease factor
-        avg_ease_factor = self.db.query(ReviewRecord).filter(
-            ReviewRecord.user_id == user_id
-        ).with_entities(ReviewRecord.ease_factor).all()
+        # Base priority based on mastery level
+        if mastery_level == 0:  # Not learned
+            base_priority = 10.0
+        elif mastery_level == 1:  # Learning
+            base_priority = 5.0
+        else:  # Mastered
+            base_priority = 1.0
         
-        avg_ease = sum(record.ease_factor for record in avg_ease_factor) / len(avg_ease_factor) if avg_ease_factor else 2.5
+        # Adjust for overdue items
+        if next_review is None or next_review <= now:
+            if next_review is None:
+                days_overdue = 0  # New item, not overdue
+            else:
+                days_overdue = (now - next_review).days
+            overdue_multiplier = 1.0 + (days_overdue * 0.1)  # 10% increase per day overdue
+        else:
+            overdue_multiplier = 1.0
         
-        return {
-            'total_items': total_records,
-            'due_today': due_today,
-            'due_this_week': due_this_week,
-            'completed_today': completed_today,
-            'average_ease_factor': round(avg_ease, 2)
+        # Adjust for importance
+        importance_multiplier = importance_level / 3.0  # Normalize to ~1.0
+        
+        return base_priority * overdue_multiplier * importance_multiplier
+    
+    @staticmethod
+    def get_recommended_study_time(mastery_level: int, importance_level: int = 1) -> int:
+        """
+        Get recommended study time in minutes
+        
+        Args:
+            mastery_level: Current mastery level
+            importance_level: Importance level (1-5)
+            
+        Returns:
+            Recommended study time in minutes
+        """
+        base_times = {
+            0: 5,   # Not learned - 5 minutes
+            1: 3,   # Learning - 3 minutes  
+            2: 1    # Mastered - 1 minute
         }
-    
-    def get_learning_streak(self, user_id: int) -> int:
-        """Calculate current learning streak (consecutive days with reviews)"""
-        now = datetime.utcnow()
-        current_date = now.date()
-        streak = 0
         
-        # Check each day backwards
-        for i in range(365):  # Check up to a year back
-            check_date = current_date - timedelta(days=i)
-            day_start = datetime.combine(check_date, datetime.min.time())
-            day_end = datetime.combine(check_date, datetime.max.time())
-            
-            reviews_on_day = self.db.query(ReviewRecord).filter(
-                and_(
-                    ReviewRecord.user_id == user_id,
-                    ReviewRecord.last_reviewed >= day_start,
-                    ReviewRecord.last_reviewed <= day_end
-                )
-            ).count()
-            
-            if reviews_on_day > 0:
-                streak += 1
-            else:
-                break
+        base_time = base_times.get(mastery_level, 3)
+        importance_factor = 1.0 + (importance_level - 1) * 0.2  # 20% increase per importance level
         
-        return streak
-    
-    def schedule_new_item(self, user_id: int, content_id: int, content_type: str) -> ReviewRecord:
-        """Schedule a new item for spaced repetition"""
-        return self.get_or_create_review_record(user_id, content_id, content_type)
-    
-    def get_upcoming_reviews(self, user_id: int, days: int = 7) -> List[Dict[str, Any]]:
-        """Get upcoming reviews for the next N days"""
-        now = datetime.utcnow()
-        end_date = now + timedelta(days=days)
-        
-        upcoming_records = self.db.query(ReviewRecord).filter(
-            and_(
-                ReviewRecord.user_id == user_id,
-                ReviewRecord.next_review > now,
-                ReviewRecord.next_review <= end_date
-            )
-        ).order_by(ReviewRecord.next_review).all()
-        
-        # Group by date
-        reviews_by_date = {}
-        for record in upcoming_records:
-            date_key = record.next_review.date().isoformat()
-            if date_key not in reviews_by_date:
-                reviews_by_date[date_key] = []
-            
-            reviews_by_date[date_key].append({
-                'content_id': record.content_id,
-                'content_type': record.content_type,
-                'review_count': record.review_count,
-                'ease_factor': record.ease_factor,
-                'interval_days': record.interval_days
-            })
-        
-        return reviews_by_date
+        return max(1, int(base_time * importance_factor))
+
+
+# Service instance
+spaced_repetition_service = SpacedRepetitionService()

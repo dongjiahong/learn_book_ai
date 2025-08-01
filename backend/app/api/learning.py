@@ -8,8 +8,8 @@ from datetime import datetime
 
 from ..core.middleware import get_current_user
 from ..models.database import get_db
-from ..models.crud import answer_record_crud, review_record_crud, question_crud
-from ..models.models import AnswerRecord, ReviewRecord
+from ..models.crud import answer_record_crud, review_record_crud, question_crud, learning_record_crud, learning_set_crud
+from ..models.models import AnswerRecord, ReviewRecord, LearningRecord, KnowledgePoint
 from ..models.models import User
 from ..schemas.learning import (
     AnswerRecordCreate,
@@ -23,7 +23,12 @@ from ..schemas.learning import (
     LearningProgressResponse,
     BulkDeleteRequest,
     LearningRecordSearchRequest,
-    ContentType
+    ContentType,
+    NewLearningRecordCreate,
+    NewLearningRecordUpdate,
+    NewLearningRecordResponse,
+    LearningSessionAnswer,
+    MasteryLevel
 )
 
 router = APIRouter(prefix="/api/learning", tags=["learning"])
@@ -453,3 +458,310 @@ async def delete_review_record(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete review record: {str(e)}")
+
+
+# New Learning Record endpoints (for knowledge-based learning)
+@router.post("/learning-records", response_model=NewLearningRecordResponse)
+async def create_learning_record(
+    record_data: NewLearningRecordCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create or get a learning record for a knowledge point in a learning set"""
+    try:
+        # Verify learning set belongs to user
+        learning_set = learning_set_crud.get(db, record_data.learning_set_id)
+        if not learning_set or learning_set.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Learning set not found")
+        
+        # Get or create learning record
+        record = learning_record_crud.get_or_create(
+            db=db,
+            user_id=current_user.id,
+            knowledge_point_id=record_data.knowledge_point_id,
+            learning_set_id=record_data.learning_set_id
+        )
+        
+        return NewLearningRecordResponse.from_orm(record)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create learning record: {str(e)}")
+
+
+@router.post("/learning-records/answer", response_model=NewLearningRecordResponse)
+async def answer_learning_session(
+    answer_data: LearningSessionAnswer,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Record user's answer in a learning session and update memory curve"""
+    try:
+        # Verify learning set belongs to user
+        learning_set = learning_set_crud.get(db, answer_data.learning_set_id)
+        if not learning_set or learning_set.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Learning set not found")
+        
+        # Update mastery level and calculate next review time
+        record = learning_record_crud.update_mastery(
+            db=db,
+            user_id=current_user.id,
+            knowledge_point_id=answer_data.knowledge_point_id,
+            learning_set_id=answer_data.learning_set_id,
+            mastery_level=answer_data.mastery_level.value
+        )
+        
+        return NewLearningRecordResponse.from_orm(record)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to record learning session answer: {str(e)}")
+
+
+@router.get("/learning-sets/{learning_set_id}/due-reviews", response_model=List[Dict[str, Any]])
+async def get_due_reviews_for_learning_set(
+    learning_set_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get knowledge points due for review in a learning set"""
+    try:
+        # Verify learning set belongs to user
+        learning_set = learning_set_crud.get(db, learning_set_id)
+        if not learning_set or learning_set.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Learning set not found")
+        
+        # Get due items
+        due_items = learning_set_crud.get_due_items(db, learning_set_id, current_user.id)
+        
+        result = []
+        for knowledge_point, learning_record in due_items:
+            result.append({
+                "knowledge_point_id": knowledge_point.id,
+                "title": knowledge_point.title,
+                "question": knowledge_point.question,
+                "content": knowledge_point.content,
+                "importance_level": knowledge_point.importance_level,
+                "mastery_level": learning_record.mastery_level if learning_record else 0,
+                "review_count": learning_record.review_count if learning_record else 0,
+                "next_review": learning_record.next_review if learning_record else None,
+                "last_reviewed": learning_record.last_reviewed if learning_record else None
+            })
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get due reviews: {str(e)}")
+
+
+@router.get("/learning-records/due", response_model=List[Dict[str, Any]])
+async def get_all_due_reviews(
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of items to return"),
+    learning_set_id: Optional[int] = Query(None, description="Filter by learning set"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all knowledge points due for review across all learning sets"""
+    try:
+        # Get due learning records
+        due_records = learning_record_crud.get_due_for_review(
+            db=db,
+            user_id=current_user.id,
+            learning_set_id=learning_set_id,
+            limit=limit
+        )
+        
+        result = []
+        for record in due_records:
+            # Get knowledge point details
+            knowledge_point = db.query(KnowledgePoint).filter(
+                KnowledgePoint.id == record.knowledge_point_id
+            ).first()
+            
+            # Get learning set details
+            learning_set = learning_set_crud.get(db, record.learning_set_id)
+            
+            if knowledge_point and learning_set:
+                result.append({
+                    "learning_record_id": record.id,
+                    "knowledge_point_id": knowledge_point.id,
+                    "learning_set_id": learning_set.id,
+                    "learning_set_name": learning_set.name,
+                    "title": knowledge_point.title,
+                    "question": knowledge_point.question,
+                    "content": knowledge_point.content,
+                    "importance_level": knowledge_point.importance_level,
+                    "mastery_level": record.mastery_level,
+                    "review_count": record.review_count,
+                    "next_review": record.next_review,
+                    "last_reviewed": record.last_reviewed,
+                    "ease_factor": record.ease_factor,
+                    "interval_days": record.interval_days
+                })
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get due reviews: {str(e)}")
+
+
+@router.get("/learning-statistics", response_model=Dict[str, Any])
+async def get_learning_statistics(
+    learning_set_id: Optional[int] = Query(None, description="Filter by learning set"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get learning statistics for the current user"""
+    try:
+        # Verify learning set ownership if specified
+        if learning_set_id:
+            learning_set = learning_set_crud.get(db, learning_set_id)
+            if not learning_set or learning_set.user_id != current_user.id:
+                raise HTTPException(status_code=404, detail="Learning set not found")
+        
+        # Get statistics
+        stats = learning_record_crud.get_statistics(
+            db=db,
+            user_id=current_user.id,
+            learning_set_id=learning_set_id
+        )
+        
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get learning statistics: {str(e)}")
+
+
+@router.get("/learning-sets/{learning_set_id}/next-review", response_model=Dict[str, Any])
+async def get_next_review_item(
+    learning_set_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get the next knowledge point to review in a learning set"""
+    try:
+        # Verify learning set belongs to user
+        learning_set = learning_set_crud.get(db, learning_set_id)
+        if not learning_set or learning_set.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Learning set not found")
+        
+        # Get due items
+        due_items = learning_set_crud.get_due_items(db, learning_set_id, current_user.id)
+        
+        if not due_items:
+            return {
+                "message": "No items due for review",
+                "next_item": None,
+                "remaining_count": 0
+            }
+        
+        # Get the first (most urgent) item
+        knowledge_point, learning_record = due_items[0]
+        
+        # Calculate priority using spaced repetition service
+        from ..services.spaced_repetition_service import spaced_repetition_service
+        priority = spaced_repetition_service.get_study_priority(
+            mastery_level=learning_record.mastery_level if learning_record else 0,
+            next_review=learning_record.next_review if learning_record else datetime.now(),
+            importance_level=knowledge_point.importance_level
+        )
+        
+        recommended_time = spaced_repetition_service.get_recommended_study_time(
+            mastery_level=learning_record.mastery_level if learning_record else 0,
+            importance_level=knowledge_point.importance_level
+        )
+        
+        return {
+            "next_item": {
+                "knowledge_point_id": knowledge_point.id,
+                "title": knowledge_point.title,
+                "question": knowledge_point.question,
+                "content": knowledge_point.content,
+                "importance_level": knowledge_point.importance_level,
+                "mastery_level": learning_record.mastery_level if learning_record else 0,
+                "review_count": learning_record.review_count if learning_record else 0,
+                "next_review": learning_record.next_review if learning_record else None,
+                "priority": priority,
+                "recommended_study_time_minutes": recommended_time
+            },
+            "remaining_count": len(due_items) - 1,
+            "total_due": len(due_items)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get next review item: {str(e)}")
+
+
+@router.get("/learning-records/{learning_set_id}", response_model=List[NewLearningRecordResponse])
+async def get_learning_records_by_set(
+    learning_set_id: int,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all learning records for a specific learning set"""
+    try:
+        # Verify learning set belongs to user
+        learning_set = learning_set_crud.get(db, learning_set_id)
+        if not learning_set or learning_set.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Learning set not found")
+        
+        # Get learning records
+        records = (
+            db.query(LearningRecord)
+            .filter(
+                LearningRecord.learning_set_id == learning_set_id,
+                LearningRecord.user_id == current_user.id
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        return [NewLearningRecordResponse.from_orm(record) for record in records]
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get learning records: {str(e)}")
+
+
+@router.put("/learning-records/{record_id}", response_model=NewLearningRecordResponse)
+async def update_learning_record(
+    record_id: int,
+    record_update: NewLearningRecordUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a learning record"""
+    try:
+        record = db.query(LearningRecord).filter(LearningRecord.id == record_id).first()
+        if not record or record.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Learning record not found")
+        
+        # Update fields
+        update_data = record_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            if hasattr(record, field):
+                setattr(record, field, value)
+        
+        db.commit()
+        db.refresh(record)
+        
+        return NewLearningRecordResponse.from_orm(record)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update learning record: {str(e)}")

@@ -361,18 +361,22 @@ export interface LearningSetUpdate {
 
 export interface LearningSetItem {
   id: number;
-  learning_set_id: number;
   knowledge_point_id: number;
   added_at: string;
-  knowledge_point: KnowledgePoint;
-  mastery_level: number; // 0: 不会, 1: 学习中, 2: 已学会
+  
+  // Knowledge point details
+  knowledge_point_title: string;
+  knowledge_point_content: string;
+  knowledge_point_question?: string;
+  knowledge_point_importance: number;
+  
+  // Learning progress
+  mastery_level?: number; // 0: 不会, 1: 学习中, 2: 已学会
+  review_count?: number;
   next_review?: string;
-  review_count: number;
 }
 
-export interface LearningSetListResponse {
-  learning_sets: LearningSet[];
-}
+export type LearningSetListResponse = LearningSet[];
 
 export interface LearningSetDetailResponse extends LearningSet {
   items: LearningSetItem[];
@@ -397,6 +401,31 @@ export interface LearningRecordCreate {
   knowledge_point_id: number;
   learning_set_id: number;
   mastery_level: number;
+}
+
+export interface LearningSessionAnswer {
+  knowledge_point_id: number;
+  learning_set_id: number;
+  mastery_level: 0 | 1 | 2;
+}
+
+export interface LearningRecordResponse {
+  id: number;
+  user_id: number;
+  knowledge_point_id: number;
+  learning_set_id: number;
+  mastery_level: number;
+  review_count: number;
+  last_reviewed?: string;
+  next_review?: string;
+  ease_factor: number;
+  interval_days: number;
+  created_at: string;
+  updated_at: string;
+  knowledge_point_title?: string;
+  knowledge_point_question?: string;
+  knowledge_point_content?: string;
+  learning_set_name?: string;
 }
 
 
@@ -1423,6 +1452,16 @@ class ApiClient {
 
   async getLearningSetItems(token: string, id: number): Promise<{ items: LearningSetItem[] }> {
     return this.authenticatedRequest(`/api/learning-sets/${id}/items`, token);
+  }
+
+  async createOrUpdateLearningRecord(
+    token: string,
+    data: LearningSessionAnswer
+  ): Promise<LearningRecordResponse> {
+    return this.authenticatedRequest('/api/learning-sets/learning-records', token, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   async createLearningRecord(

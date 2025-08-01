@@ -1444,9 +1444,10 @@ class CRUDLearningRecord(CRUDBase[None, None, None]):
         learning_set_id: int,
         mastery_level: int
     ) -> Any:
-        """Update mastery level and calculate next review time"""
+        """Update mastery level and calculate next review time using SuperMemo SM-2 algorithm"""
         try:
-            from datetime import datetime, timedelta
+            from datetime import datetime
+            from ..services.spaced_repetition_service import spaced_repetition_service
             
             record = self.get_or_create(
                 db=db,
@@ -1455,24 +1456,23 @@ class CRUDLearningRecord(CRUDBase[None, None, None]):
                 learning_set_id=learning_set_id
             )
             
-            # Update mastery level
+            # Update mastery level and review count
             record.mastery_level = mastery_level
             record.review_count += 1
             record.last_reviewed = datetime.now()
             
-            # Calculate next review time using simplified SM-2 algorithm
-            if mastery_level == 0:  # Not learned
-                record.interval_days = 1
-                record.ease_factor = max(1.3, record.ease_factor - 0.2)
-            elif mastery_level == 1:  # Learning
-                record.interval_days = max(1, int(record.interval_days * record.ease_factor))
-                record.ease_factor = max(1.3, record.ease_factor - 0.15)
-            else:  # Mastered
-                record.interval_days = int(record.interval_days * record.ease_factor)
-                record.ease_factor = min(3.0, record.ease_factor + 0.1)
+            # Calculate next review time using SuperMemo SM-2 algorithm
+            new_interval, new_ease_factor, next_review = spaced_repetition_service.calculate_next_review(
+                mastery_level=mastery_level,
+                current_ease_factor=record.ease_factor,
+                current_interval=record.interval_days,
+                review_count=record.review_count - 1  # Subtract 1 because we already incremented
+            )
             
-            # Set next review date
-            record.next_review = record.last_reviewed + timedelta(days=record.interval_days)
+            # Update record with new values
+            record.interval_days = new_interval
+            record.ease_factor = new_ease_factor
+            record.next_review = next_review
             
             db.commit()
             db.refresh(record)
@@ -1481,6 +1481,96 @@ class CRUDLearningRecord(CRUDBase[None, None, None]):
         except SQLAlchemyError as e:
             logger.error(f"Error updating mastery for learning record: {e}")
             db.rollback()
+            raise
+    
+    def get_due_for_review(
+        self, 
+        db: Session, 
+        user_id: int, 
+        learning_set_id: int = None,
+        limit: int = 50
+    ) -> List[Any]:
+        """Get learning records due for review"""
+        try:
+            from datetime import datetime
+            
+            query = (
+                db.query(self.model)
+                .filter(
+                    self.model.user_id == user_id,
+                    func.coalesce(self.model.next_review, datetime.now()) <= datetime.now()
+                )
+            )
+            
+            if learning_set_id:
+                query = query.filter(self.model.learning_set_id == learning_set_id)
+            
+            return (
+                query
+                .order_by(self.model.next_review.asc().nullsfirst())
+                .limit(limit)
+                .all()
+            )
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting due learning records for user {user_id}: {e}")
+            raise
+    
+    def get_statistics(
+        self, 
+        db: Session, 
+        user_id: int, 
+        learning_set_id: int = None
+    ) -> Dict[str, Any]:
+        """Get learning statistics for a user"""
+        try:
+            query = db.query(self.model).filter(self.model.user_id == user_id)
+            
+            if learning_set_id:
+                query = query.filter(self.model.learning_set_id == learning_set_id)
+            
+            # Count by mastery level
+            mastery_counts = (
+                query
+                .with_entities(
+                    self.model.mastery_level,
+                    func.count(self.model.id).label('count')
+                )
+                .group_by(self.model.mastery_level)
+                .all()
+            )
+            
+            # Count due items
+            from datetime import datetime
+            due_count = (
+                query
+                .filter(func.coalesce(self.model.next_review, datetime.now()) <= datetime.now())
+                .count()
+            )
+            
+            # Total items
+            total_count = query.count()
+            
+            # Build statistics
+            stats = {
+                "total_items": total_count,
+                "due_items": due_count,
+                "mastery_distribution": {
+                    "not_learned": 0,
+                    "learning": 0,
+                    "mastered": 0
+                }
+            }
+            
+            mastery_labels = {0: "not_learned", 1: "learning", 2: "mastered"}
+            for mastery_level, count in mastery_counts:
+                label = mastery_labels.get(mastery_level, "unknown")
+                stats["mastery_distribution"][label] = count
+            
+            return stats
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting learning statistics for user {user_id}: {e}")
             raise
 
 

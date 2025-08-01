@@ -76,23 +76,14 @@ export function LearningSetList({ onSelectLearningSet }: LearningSetListProps) {
     try {
       const response = await apiClient.getLearningSets(tokens.access_token);
       console.log('Learning sets response:', response); // 调试日志
-      console.log('Response type:', typeof response);
-      console.log('Response keys:', Object.keys(response || {}));
       
-      // 尝试不同的数据结构
-      let learningSetData = [];
+      // 后端返回的是数组格式
       if (Array.isArray(response)) {
-        learningSetData = response;
-      } else if (response?.learning_sets && Array.isArray(response.learning_sets)) {
-        learningSetData = response.learning_sets;
-      } else if (response?.data && Array.isArray(response.data)) {
-        learningSetData = response.data;
+        setLearningSets(response);
       } else {
         console.warn('Unexpected response structure:', response);
+        setLearningSets([]);
       }
-      console.log("---> response: ", response)
-      console.log('Final learning sets data:', learningSetData);
-      setLearningSets(learningSetData);
     } catch (error) {
       message.error('获取学习集列表失败');
       console.error('Error fetching learning sets:', error);
@@ -265,11 +256,6 @@ export function LearningSetList({ onSelectLearningSet }: LearningSetListProps) {
       </div>
 
       {/* Learning Set List */}
-      {console.log('Render condition check:', { 
-        learningSetLength: learningSets.length, 
-        loading, 
-        showEmpty: learningSets.length === 0 && !loading 
-      })}
       {learningSets.length === 0 && !loading ? (
         <Card>
           <Empty
