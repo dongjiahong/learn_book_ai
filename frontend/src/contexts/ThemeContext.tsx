@@ -4,14 +4,11 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { ThemeMode, getCurrentTheme, getAntdTheme } from '@/lib/theme';
+import { getCurrentTheme, getAntdTheme } from '@/lib/theme';
 
 interface ThemeContextType {
-  mode: ThemeMode;
-  setMode: (mode: ThemeMode) => void;
   theme: ReturnType<typeof getCurrentTheme>;
   antdTheme: ReturnType<typeof getAntdTheme>;
-  isDark: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -21,46 +18,17 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [mode, setMode] = useState<ThemeMode>('light');
   const [mounted, setMounted] = useState(false);
 
-  // Initialize theme from localStorage or system preference
+  // Initialize theme
   useEffect(() => {
-    const savedMode = localStorage.getItem('theme-mode') as ThemeMode;
-    if (savedMode && ['light', 'dark', 'auto'].includes(savedMode)) {
-      setMode(savedMode);
-    } else {
-      // Default to auto mode
-      setMode('auto');
-    }
     setMounted(true);
   }, []);
-
-  // Save theme mode to localStorage
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('theme-mode', mode);
-    }
-  }, [mode, mounted]);
-
-  // Listen for system theme changes when in auto mode
-  useEffect(() => {
-    if (mode === 'auto') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => {
-        // Force re-render by updating a dummy state
-        setMounted(prev => !prev);
-      };
-
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, [mode]);
 
   // Update CSS custom properties for theme
   useEffect(() => {
     if (mounted) {
-      const theme = getCurrentTheme(mode);
+      const theme = getCurrentTheme();
       const root = document.documentElement;
       
       // Update CSS custom properties
@@ -76,24 +44,17 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         root.style.setProperty(`--border-radius-${key}`, value);
       });
 
-      // Update data attribute for CSS selectors
-      root.setAttribute('data-theme', mode === 'auto' 
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : mode
-      );
+      // Set light theme
+      root.setAttribute('data-theme', 'light');
     }
-  }, [mode, mounted]);
+  }, [mounted]);
 
-  const theme = getCurrentTheme(mode);
-  const antdTheme = getAntdTheme(mode);
-  const isDark = mode === 'dark' || (mode === 'auto' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const theme = getCurrentTheme();
+  const antdTheme = getAntdTheme();
 
   const value: ThemeContextType = {
-    mode,
-    setMode,
     theme,
     antdTheme,
-    isDark,
   };
 
   // Prevent hydration mismatch by not rendering until mounted

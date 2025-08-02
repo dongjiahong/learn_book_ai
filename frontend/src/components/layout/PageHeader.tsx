@@ -50,7 +50,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   const isMobile = !screens.md;
 
   return (
-    <div className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 ${className}`}>
+    <div className={`bg-white border-b border-gray-200 ${className}`}>
       <Container>
         <div className="py-4 md:py-6">
           {/* Breadcrumbs */}
@@ -61,12 +61,12 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                   title: item.href ? (
                     <a 
                       href={item.href}
-                      className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400"
+                      className="text-gray-500 hover:text-blue-500"
                     >
                       {item.title}
                     </a>
                   ) : (
-                    <span className="text-gray-800 dark:text-gray-200">
+                    <span className="text-gray-800">
                       {item.title}
                     </span>
                   ),
@@ -85,7 +85,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                   type="text"
                   icon={<ArrowLeftOutlined />}
                   onClick={handleBack}
-                  className="mt-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="mt-1 hover:bg-gray-100"
                   size={isMobile ? 'small' : 'middle'}
                 />
               )}
@@ -94,7 +94,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               <div className="min-w-0 flex-1">
                 <Title 
                   level={isMobile ? 3 : 2} 
-                  className="!mb-0 text-gray-900 dark:text-gray-100 truncate"
+                  className="!mb-0 text-gray-900 truncate"
                   style={{ fontSize: isMobile ? '20px' : '28px' }}
                 >
                   {title}

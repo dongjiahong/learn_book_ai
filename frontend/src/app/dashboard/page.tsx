@@ -170,10 +170,10 @@ function DashboardContent() {
                 {quickActions.map((action, index) => (
                   <div 
                     key={index}
-                    className="flex items-start space-x-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                    className="flex items-start space-x-4 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors duration-200"
                   >
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-10 h-10 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center shadow-sm">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
                         {action.icon}
                       </div>
                     </div>

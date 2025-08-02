@@ -3,8 +3,6 @@
  */
 import { theme } from 'antd';
 
-export type ThemeMode = 'light' | 'dark' | 'auto';
-
 // Light theme colors
 export const lightTheme = {
   colors: {
@@ -53,44 +51,8 @@ export const lightTheme = {
   },
 };
 
-// Dark theme colors
-export const darkTheme = {
-  colors: {
-    primary: '#1890ff',
-    primaryHover: '#40a9ff',
-    primaryActive: '#096dd9',
-    success: '#52c41a',
-    warning: '#faad14',
-    error: '#ff4d4f',
-    info: '#1890ff',
-    
-    // Background colors
-    bgPrimary: '#141414',
-    bgSecondary: '#1f1f1f',
-    bgTertiary: '#262626',
-    bgElevated: '#1f1f1f',
-    
-    // Text colors
-    textPrimary: '#ffffff',
-    textSecondary: '#d9d9d9',
-    textTertiary: '#8c8c8c',
-    textDisabled: '#434343',
-    
-    // Border colors
-    borderPrimary: '#434343',
-    borderSecondary: '#303030',
-    
-    // Shadow
-    shadowLight: '0 2px 8px rgba(0, 0, 0, 0.15)',
-    shadowMedium: '0 4px 12px rgba(0, 0, 0, 0.25)',
-    shadowHeavy: '0 8px 24px rgba(0, 0, 0, 0.35)',
-  },
-  spacing: lightTheme.spacing,
-  borderRadius: lightTheme.borderRadius,
-};
-
-// Ant Design theme tokens for light mode
-export const antdLightTheme = {
+// Ant Design theme tokens
+export const antdTheme = {
   algorithm: theme.defaultAlgorithm,
   token: {
     colorPrimary: '#1890ff',
@@ -163,35 +125,6 @@ export const antdLightTheme = {
   },
 };
 
-// Ant Design theme tokens for dark mode
-export const antdDarkTheme = {
-  algorithm: theme.darkAlgorithm,
-  token: {
-    ...antdLightTheme.token,
-    siderBg: '#1f1f1f',
-    headerBg: '#1f1f1f',
-    bodyBg: '#141414',
-  },
-  components: {
-    ...antdLightTheme.components,
-    Layout: {
-      siderBg: '#1f1f1f',
-      headerBg: '#1f1f1f',
-      bodyBg: '#141414',
-      headerHeight: 64,
-    },
-    Menu: {
-      ...antdLightTheme.components.Menu,
-      itemBg: 'transparent',
-      itemSelectedBg: '#111b26',
-      itemHoverBg: '#262626',
-      itemActiveBg: '#111b26',
-      itemSelectedColor: '#1890ff',
-      itemColor: '#d9d9d9',
-    },
-  },
-};
-
 // Responsive breakpoints
 export const breakpoints = {
   xs: '480px',
@@ -220,21 +153,11 @@ export const mediaQueries = {
 };
 
 // Utility function to get current theme
-export const getCurrentTheme = (mode: ThemeMode) => {
-  if (mode === 'auto') {
-    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? darkTheme
-      : lightTheme;
-  }
-  return mode === 'dark' ? darkTheme : lightTheme;
+export const getCurrentTheme = () => {
+  return lightTheme;
 };
 
 // Utility function to get Ant Design theme
-export const getAntdTheme = (mode: ThemeMode) => {
-  if (mode === 'auto') {
-    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? antdDarkTheme
-      : antdLightTheme;
-  }
-  return mode === 'dark' ? antdDarkTheme : antdLightTheme;
+export const getAntdTheme = () => {
+  return antdTheme;
 };

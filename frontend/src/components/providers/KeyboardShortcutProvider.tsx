@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { HelpModal } from '@/components/feedback/HelpModal';
-import { useTheme } from '@/contexts/ThemeContext';
+
 
 interface KeyboardShortcutProviderProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export const KeyboardShortcutProvider: React.FC<KeyboardShortcutProviderProps> =
 }) => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const router = useRouter();
-  const { setMode, mode } = useTheme();
+
 
   const shortcuts = [
     {
@@ -82,15 +82,7 @@ export const KeyboardShortcutProvider: React.FC<KeyboardShortcutProviderProps> =
         }
       },
     },
-    {
-      key: 't',
-      ctrlKey: true,
-      description: '切换主题',
-      action: () => {
-        const nextMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light';
-        setMode(nextMode);
-      },
-    },
+
     {
       key: '?',
       description: '显示帮助',

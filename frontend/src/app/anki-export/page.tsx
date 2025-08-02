@@ -6,9 +6,7 @@ import { apiClient } from '@/lib/api';
 import type { 
   KnowledgeBase, 
   AnkiExportResponse, 
-  AnkiExportListItem,
-  AnswerRecord,
-  KnowledgePoint
+  AnkiExportListItem
 } from '@/lib/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { AnkiExportForm } from '@/components/anki/AnkiExportForm';

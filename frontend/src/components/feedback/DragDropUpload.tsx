@@ -82,8 +82,8 @@ export const DragDropUpload: React.FC<DragDropUploadProps> = ({
         showUploadList={showFileList}
         className={`
           transition-all duration-200 ease-in-out
-          ${dragOver ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''}
-          hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20
+          ${dragOver ? 'border-blue-500 bg-blue-50' : ''}
+          hover:border-blue-400 hover:bg-blue-50
         `}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -96,8 +96,8 @@ export const DragDropUpload: React.FC<DragDropUploadProps> = ({
               <div className={`
                 rounded-full p-4 transition-colors duration-200
                 ${dragOver 
-                  ? 'bg-blue-100 dark:bg-blue-900/30' 
-                  : 'bg-gray-100 dark:bg-gray-800'
+                  ? 'bg-blue-100' 
+                  : 'bg-gray-100'
                 }
               `}>
                 <InboxOutlined 
@@ -105,7 +105,7 @@ export const DragDropUpload: React.FC<DragDropUploadProps> = ({
                     text-4xl transition-colors duration-200
                     ${dragOver 
                       ? 'text-blue-500' 
-                      : 'text-gray-400 dark:text-gray-500'
+                      : 'text-gray-400'
                     }
                   `} 
                 />
@@ -118,8 +118,8 @@ export const DragDropUpload: React.FC<DragDropUploadProps> = ({
                 className={`
                   !mb-0 transition-colors duration-200
                   ${dragOver 
-                    ? 'text-blue-600 dark:text-blue-400' 
-                    : 'text-gray-700 dark:text-gray-300'
+                    ? 'text-blue-600' 
+                    : 'text-gray-700'
                   }
                 `}
               >

@@ -22,8 +22,7 @@ export function AnkiExportForm({
   const token = tokens?.access_token;
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<number[]>([]);
   const [deckName, setDeckName] = useState('');
-  const [includeQA, setIncludeQA] = useState(true);
-  const [includeKP, setIncludeKP] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
 
   const handleKnowledgeBaseToggle = (kbId: number) => {
@@ -51,9 +50,7 @@ export function AnkiExportForm({
 
       const exportData = await apiClient.exportKnowledgeBaseAnkiDeck(
         token,
-        kbId,
-        true, // include Q&A
-        true  // include knowledge points
+        kbId
       );
 
       onExportComplete(exportData);
@@ -88,9 +85,7 @@ export function AnkiExportForm({
 
       const exportData = await apiClient.exportAnkiDeck(token, {
         deck_name: deckName.trim(),
-        knowledge_base_ids: selectedKnowledgeBases,
-        include_qa: includeQA,
-        include_kp: includeKP
+        knowledge_base_ids: selectedKnowledgeBases
       });
 
       onExportComplete(exportData);
@@ -110,8 +105,6 @@ export function AnkiExportForm({
       // Reset form
       setDeckName('');
       setSelectedKnowledgeBases([]);
-      setIncludeQA(true);
-      setIncludeKP(true);
 
     } catch (error) {
       console.error('Export failed:', error);
@@ -127,7 +120,7 @@ export function AnkiExportForm({
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">快速导出</h2>
         <p className="text-gray-600 mb-4">
-          为每个知识库单独创建Anki卡片包，包含所有问答记录和知识点
+          为每个知识库单独创建Anki卡片包，包含所有知识点
         </p>
         
         {knowledgeBases.length === 0 ? (
@@ -146,7 +139,10 @@ export function AnkiExportForm({
                 )}
                 <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
                   <span>文档数: {kb.document_count || 0}</span>
-                  <span>创建于: {new Date(kb.created_at).toLocaleDateString()}</span>
+                  <span>知识点: {kb.knowledge_point_count || 0}</span>
+                </div>
+                <div className="text-xs text-gray-400 mb-3">
+                  创建于: {new Date(kb.created_at).toLocaleDateString()}
                 </div>
                 <button
                   onClick={() => handleQuickExport(kb.id, kb.name)}
@@ -165,7 +161,7 @@ export function AnkiExportForm({
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">自定义导出</h2>
         <p className="text-gray-600 mb-6">
-          选择多个知识库并自定义导出选项，创建合并的Anki卡片包
+          选择多个知识库，创建合并的Anki卡片包
         </p>
 
         <form onSubmit={handleCustomExport} className="space-y-6">
@@ -227,36 +223,19 @@ export function AnkiExportForm({
             )}
           </div>
 
-          {/* Export Options */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              导出内容
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeQA}
-                  onChange={(e) => setIncludeQA(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">问答记录</p>
-                  <p className="text-xs text-gray-500">包含您的答题记录、参考答案、评分和反馈</p>
-                </div>
-              </label>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeKP}
-                  onChange={(e) => setIncludeKP(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">知识点</p>
-                  <p className="text-xs text-gray-500">包含提取的重要知识点和概念</p>
-                </div>
-              </label>
+          {/* Export Info */}
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-800">
+                  <strong>导出内容：</strong>将导出选中知识库中的所有知识点，生成问答形式的Anki卡片
+                </p>
+              </div>
             </div>
           </div>
 
@@ -280,7 +259,7 @@ export function AnkiExportForm({
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={exporting || selectedKnowledgeBases.length === 0 || !deckName.trim() || (!includeQA && !includeKP)}
+              disabled={exporting || selectedKnowledgeBases.length === 0 || !deckName.trim()}
               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {exporting ? '导出中...' : '创建并下载'}

@@ -507,10 +507,8 @@ export interface WeeklySummary {
 
 // Anki Export interfaces
 export interface AnkiExportRequest {
-  knowledge_base_id: number;
-  include_questions: boolean;
-  include_knowledge_points: boolean;
-  deck_name?: string;
+  deck_name: string;
+  knowledge_base_ids?: number[];
 }
 
 export interface CustomAnkiExportRequest {
@@ -523,18 +521,18 @@ export interface AnkiExportResponse {
   export_id: string;
   deck_name: string;
   card_count: number;
-  download_url: string;
-  expires_at: string;
+  created_at: string;
 }
 
 export interface AnkiExportRecord {
-  id: string;
+  export_id: string;
   deck_name: string;
   card_count: number;
   created_at: string;
-  expires_at: string;
-  download_url: string;
 }
+
+// Type alias for backward compatibility
+export type AnkiExportListItem = AnkiExportRecord;
 
 export interface AnkiExportListResponse {
   exports: AnkiExportRecord[];
@@ -1263,17 +1261,10 @@ class ApiClient {
 
   async exportKnowledgeBaseAnkiDeck(
     token: string,
-    knowledgeBaseId: number,
-    includeQa: boolean = true,
-    includeKp: boolean = true
+    knowledgeBaseId: number
   ): Promise<AnkiExportResponse> {
-    const params = new URLSearchParams({
-      include_qa: includeQa.toString(),
-      include_kp: includeKp.toString(),
-    });
-
     return this.authenticatedRequest(
-      `/api/anki/export/knowledge-base/${knowledgeBaseId}?${params.toString()}`,
+      `/api/anki/export/knowledge-base/${knowledgeBaseId}`,
       token,
       { method: 'POST' }
     );

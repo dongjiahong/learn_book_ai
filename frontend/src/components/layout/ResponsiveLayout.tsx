@@ -20,14 +20,10 @@ import {
   SyncOutlined,
   BulbOutlined,
   ExportOutlined,
-  MoonOutlined,
-  SunOutlined,
-  DesktopOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { useTheme } from '@/contexts/ThemeContext';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -41,7 +37,6 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { setMode, isDark } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const screens = useBreakpoint();
@@ -59,10 +54,6 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
   const handleLogout = () => {
     logout();
     router.push('/auth/login');
-  };
-
-  const handleThemeChange = (newMode: 'light' | 'dark' | 'auto') => {
-    setMode(newMode);
   };
 
   // 菜单项配置
@@ -105,28 +96,6 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
     },
   ];
 
-  // 主题切换菜单
-  const themeMenuItems = [
-    {
-      key: 'light',
-      icon: <SunOutlined />,
-      label: '浅色主题',
-      onClick: () => handleThemeChange('light'),
-    },
-    {
-      key: 'dark',
-      icon: <MoonOutlined />,
-      label: '深色主题',
-      onClick: () => handleThemeChange('dark'),
-    },
-    {
-      key: 'auto',
-      icon: <DesktopOutlined />,
-      label: '跟随系统',
-      onClick: () => handleThemeChange('auto'),
-    },
-  ];
-
   // 用户下拉菜单
   const userMenuItems = [
     {
@@ -138,12 +107,6 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
       key: 'settings',
       icon: <SettingOutlined />,
       label: '设置',
-    },
-    {
-      key: 'theme',
-      icon: isDark ? <MoonOutlined /> : <SunOutlined />,
-      label: '主题设置',
-      children: themeMenuItems,
     },
     {
       type: 'divider' as const,
@@ -159,17 +122,17 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
   // 侧边栏内容
   const sidebarContent = (
     <>
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
             <BookOutlined className="text-white text-lg" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="font-semibold text-gray-800 dark:text-gray-200 truncate">
+              <div className="font-semibold text-gray-800 truncate">
                 RAG学习平台
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <div className="text-xs text-gray-500 truncate">
                 智能学习助手
               </div>
             </div>
@@ -204,7 +167,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
           trigger={null}
           collapsible
           collapsed={collapsed}
-          className="bg-white dark:bg-gray-900 shadow-md"
+          className="bg-white shadow-md"
           width={240}
           collapsedWidth={64}
         >
@@ -229,7 +192,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
       )}
 
       <Layout>
-        <Header className="bg-white dark:bg-gray-900 shadow-sm px-4 flex justify-between items-center sticky top-0 z-10">
+        <Header className="bg-white shadow-sm px-4 flex justify-between items-center sticky top-0 z-10">
           <div className="flex items-center space-x-2">
             <Button
               type="text"
@@ -249,7 +212,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
                   setCollapsed(!collapsed);
                 }
               }}
-              className="text-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="text-lg hover:bg-gray-100"
             />
             
             {/* Mobile title */}
@@ -258,7 +221,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
                 <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
                   <BookOutlined className="text-white text-sm" />
                 </div>
-                <Text strong className="text-gray-800 dark:text-gray-200">
+                <Text strong className="text-gray-800">
                   RAG学习平台
                 </Text>
               </div>
@@ -272,12 +235,12 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
               arrow
               trigger={['click']}
             >
-              <div className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 px-3 py-2 rounded-lg transition-colors">
+              <div className="cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
                 <Space align="center">
                   <Avatar size="small" icon={<UserOutlined />} />
                   {!isMobile && (
                     <div className="flex flex-col items-start">
-                      <Text strong className="text-gray-800 dark:text-gray-200 text-sm leading-tight">
+                      <Text strong className="text-gray-800 text-sm leading-tight">
                         {user.username}
                       </Text>
                       <Text type="secondary" className="text-xs leading-tight">
@@ -299,7 +262,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
           )}
         </Header>
 
-        <Content className="bg-gray-50 dark:bg-gray-900 overflow-auto">
+        <Content className="bg-gray-50 overflow-auto">
           <div className="p-4 md:p-6">
             {children}
           </div>

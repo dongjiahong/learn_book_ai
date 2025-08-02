@@ -115,7 +115,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({
             {allShortcuts.map((shortcut, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800"
+                className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50"
               >
                 <Text className={isMobile ? 'text-sm' : 'text-base'}>
                   {shortcut.description}
@@ -124,7 +124,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({
                   {formatKey(shortcut).map((key, keyIndex) => (
                     <Tag
                       key={keyIndex}
-                      className="font-mono text-xs px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                      className="font-mono text-xs px-2 py-1 bg-white border border-gray-300"
                     >
                       {key}
                     </Tag>

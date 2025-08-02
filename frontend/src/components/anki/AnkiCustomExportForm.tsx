@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/lib/api';
 import type { 
   KnowledgeBase, 
   AnkiExportResponse, 
-  AnswerRecord, 
   KnowledgePoint 
 } from '@/lib/api';
 
@@ -27,41 +26,23 @@ export function AnkiCustomExportForm({
   const token = tokens?.access_token;
   const [deckName, setDeckName] = useState('');
   const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<number | null>(null);
-  const [answerRecords, setAnswerRecords] = useState<AnswerRecord[]>([]);
   const [knowledgePoints, setKnowledgePoints] = useState<KnowledgePoint[]>([]);
-  const [selectedAnswerRecords, setSelectedAnswerRecords] = useState<number[]>([]);
   const [selectedKnowledgePoints, setSelectedKnowledgePoints] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'qa' | 'kp'>('qa');
 
-  useEffect(() => {
-    if (selectedKnowledgeBase && token) {
-      loadKnowledgeBaseContent();
-    }
-  }, [selectedKnowledgeBase, token]);
 
-  const loadKnowledgeBaseContent = async () => {
+  const loadKnowledgeBaseContent = useCallback(async () => {
     if (!selectedKnowledgeBase || !token) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      // Load answer records
-      const answerResponse = await apiClient.getAnswerRecords(
-        token,
-        undefined,
-        selectedKnowledgeBase,
-        0,
-        1000
-      );
-      setAnswerRecords(answerResponse.records);
-
-      // Load knowledge points
+      // Load knowledge points only
       const kpResponse = await apiClient.getKnowledgePoints(token, {
         knowledge_base_id: selectedKnowledgeBase,
-        limit: 1000
+        limit: 500
       });
       setKnowledgePoints(kpResponse.knowledge_points);
 
@@ -71,15 +52,13 @@ export function AnkiCustomExportForm({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedKnowledgeBase, token]);
 
-  const handleAnswerRecordToggle = (recordId: number) => {
-    setSelectedAnswerRecords(prev => 
-      prev.includes(recordId) 
-        ? prev.filter(id => id !== recordId)
-        : [...prev, recordId]
-    );
-  };
+  useEffect(() => {
+    if (selectedKnowledgeBase && token) {
+      loadKnowledgeBaseContent();
+    }
+  }, [loadKnowledgeBaseContent, selectedKnowledgeBase, token]);
 
   const handleKnowledgePointToggle = (kpId: number) => {
     setSelectedKnowledgePoints(prev => 
@@ -87,14 +66,6 @@ export function AnkiCustomExportForm({
         ? prev.filter(id => id !== kpId)
         : [...prev, kpId]
     );
-  };
-
-  const handleSelectAllAnswerRecords = () => {
-    if (selectedAnswerRecords.length === answerRecords.length) {
-      setSelectedAnswerRecords([]);
-    } else {
-      setSelectedAnswerRecords(answerRecords.map(record => record.id));
-    }
   };
 
   const handleSelectAllKnowledgePoints = () => {
@@ -107,7 +78,7 @@ export function AnkiCustomExportForm({
 
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !deckName.trim() || (selectedAnswerRecords.length === 0 && selectedKnowledgePoints.length === 0)) {
+    if (!token || !deckName.trim() || selectedKnowledgePoints.length === 0) {
       return;
     }
 
@@ -117,8 +88,7 @@ export function AnkiCustomExportForm({
 
       const exportData = await apiClient.exportCustomAnkiDeck(token, {
         deck_name: deckName.trim(),
-        answer_record_ids: selectedAnswerRecords.length > 0 ? selectedAnswerRecords : undefined,
-        knowledge_point_ids: selectedKnowledgePoints.length > 0 ? selectedKnowledgePoints : undefined
+        knowledge_point_ids: selectedKnowledgePoints
       });
 
       onExportComplete(exportData);
@@ -137,10 +107,8 @@ export function AnkiCustomExportForm({
 
       // Reset form
       setDeckName('');
-      setSelectedAnswerRecords([]);
       setSelectedKnowledgePoints([]);
       setSelectedKnowledgeBase(null);
-      setAnswerRecords([]);
       setKnowledgePoints([]);
 
     } catch (error) {
@@ -149,12 +117,6 @@ export function AnkiCustomExportForm({
     } finally {
       setExporting(false);
     }
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return 'text-green-600 bg-green-100';
-    if (score >= 6) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
   };
 
   const getImportanceColor = (level: number) => {
@@ -167,7 +129,7 @@ export function AnkiCustomExportForm({
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">自定义选择导出</h2>
       <p className="text-gray-600 mb-6">
-        精确选择要导出的问答记录和知识点，创建个性化的Anki卡片包
+        精确选择要导出的知识点，创建个性化的Anki卡片包
       </p>
 
       <form onSubmit={handleExport} className="space-y-6">
@@ -198,7 +160,6 @@ export function AnkiCustomExportForm({
             onChange={(e) => {
               const value = e.target.value;
               setSelectedKnowledgeBase(value ? parseInt(value) : null);
-              setSelectedAnswerRecords([]);
               setSelectedKnowledgePoints([]);
             }}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -207,50 +168,28 @@ export function AnkiCustomExportForm({
             <option value="">请选择知识库</option>
             {knowledgeBases.map((kb) => (
               <option key={kb.id} value={kb.id}>
-                {kb.name} ({kb.document_count || 0} 文档)
+                {kb.name} ({kb.document_count || 0} 文档, {kb.knowledge_point_count || 0} 知识点)
               </option>
             ))}
           </select>
         </div>
 
-        {/* Content Selection */}
+        {/* Knowledge Points Selection */}
         {selectedKnowledgeBase && (
           <div>
-            <div className="border-b border-gray-200 mb-4">
-              <nav className="-mb-px flex space-x-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-gray-700">
+                选择知识点 ({knowledgePoints.length})
+              </h3>
+              {knowledgePoints.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setActiveSection('qa')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeSection === 'qa'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  onClick={handleSelectAllKnowledgePoints}
+                  className="text-sm text-blue-600 hover:text-blue-800"
                 >
-                  问答记录
-                  {answerRecords.length > 0 && (
-                    <span className="ml-2 bg-gray-100 text-gray-600 py-1 px-2 rounded-full text-xs">
-                      {selectedAnswerRecords.length}/{answerRecords.length}
-                    </span>
-                  )}
+                  {selectedKnowledgePoints.length === knowledgePoints.length ? '取消全选' : '全选'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveSection('kp')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeSection === 'kp'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  知识点
-                  {knowledgePoints.length > 0 && (
-                    <span className="ml-2 bg-gray-100 text-gray-600 py-1 px-2 rounded-full text-xs">
-                      {selectedKnowledgePoints.length}/{knowledgePoints.length}
-                    </span>
-                  )}
-                </button>
-              </nav>
+              )}
             </div>
 
             {loading ? (
@@ -258,116 +197,36 @@ export function AnkiCustomExportForm({
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 <span className="ml-2 text-gray-600">加载中...</span>
               </div>
+            ) : knowledgePoints.length === 0 ? (
+              <p className="text-gray-500 text-sm py-4">该知识库暂无知识点</p>
             ) : (
-              <div>
-                {/* Answer Records Section */}
-                {activeSection === 'qa' && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-medium text-gray-700">
-                        问答记录 ({answerRecords.length})
-                      </h3>
-                      {answerRecords.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={handleSelectAllAnswerRecords}
-                          className="text-sm text-blue-600 hover:text-blue-800"
-                        >
-                          {selectedAnswerRecords.length === answerRecords.length ? '取消全选' : '全选'}
-                        </button>
-                      )}
-                    </div>
-
-                    {answerRecords.length === 0 ? (
-                      <p className="text-gray-500 text-sm py-4">该知识库暂无问答记录</p>
-                    ) : (
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {answerRecords.map((record) => (
-                          <label key={record.id} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input
-                              type="checkbox"
-                              checked={selectedAnswerRecords.includes(record.id)}
-                              onChange={() => handleAnswerRecordToggle(record.id)}
-                              className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 mb-1">
-                                {record.question_text}
-                              </p>
-                              <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                                {record.user_answer}
-                              </p>
-                              <div className="flex items-center space-x-4 text-xs">
-                                <span className={`px-2 py-1 rounded-full font-medium ${getScoreColor(record.score)}`}>
-                                  {record.score.toFixed(1)}分
-                                </span>
-                                <span className="text-gray-500">
-                                  {new Date(record.answered_at).toLocaleDateString()}
-                                </span>
-                                <span className="text-gray-500">
-                                  {record.document_name}
-                                </span>
-                              </div>
-                            </div>
-                          </label>
-                        ))}
+              <div className="space-y-3 max-h-96 overflow-y-auto border border-gray-200 rounded-md p-3">
+                {knowledgePoints.map((kp) => (
+                  <label key={kp.id} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={selectedKnowledgePoints.includes(kp.id)}
+                      onChange={() => handleKnowledgePointToggle(kp.id)}
+                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 mb-1">
+                        {kp.title}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-2 line-clamp-3">
+                        {kp.content}
+                      </p>
+                      <div className="flex items-center space-x-4 text-xs">
+                        <span className={`px-2 py-1 rounded-full font-medium ${getImportanceColor(kp.importance_level)}`}>
+                          重要度 {kp.importance_level}
+                        </span>
+                        <span className="text-gray-500">
+                          {new Date(kp.created_at).toLocaleDateString()}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Knowledge Points Section */}
-                {activeSection === 'kp' && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-medium text-gray-700">
-                        知识点 ({knowledgePoints.length})
-                      </h3>
-                      {knowledgePoints.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={handleSelectAllKnowledgePoints}
-                          className="text-sm text-blue-600 hover:text-blue-800"
-                        >
-                          {selectedKnowledgePoints.length === knowledgePoints.length ? '取消全选' : '全选'}
-                        </button>
-                      )}
                     </div>
-
-                    {knowledgePoints.length === 0 ? (
-                      <p className="text-gray-500 text-sm py-4">该知识库暂无知识点</p>
-                    ) : (
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {knowledgePoints.map((kp) => (
-                          <label key={kp.id} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input
-                              type="checkbox"
-                              checked={selectedKnowledgePoints.includes(kp.id)}
-                              onChange={() => handleKnowledgePointToggle(kp.id)}
-                              className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 mb-1">
-                                {kp.title}
-                              </p>
-                              <p className="text-xs text-gray-600 mb-2 line-clamp-3">
-                                {kp.content}
-                              </p>
-                              <div className="flex items-center space-x-4 text-xs">
-                                <span className={`px-2 py-1 rounded-full font-medium ${getImportanceColor(kp.importance_level)}`}>
-                                  重要度 {kp.importance_level}
-                                </span>
-                                <span className="text-gray-500">
-                                  {new Date(kp.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  </label>
+                ))}
               </div>
             )}
           </div>
@@ -397,11 +256,11 @@ export function AnkiCustomExportForm({
               exporting || 
               !deckName.trim() || 
               !selectedKnowledgeBase ||
-              (selectedAnswerRecords.length === 0 && selectedKnowledgePoints.length === 0)
+              selectedKnowledgePoints.length === 0
             }
             className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            {exporting ? '导出中...' : `创建并下载 (${selectedAnswerRecords.length + selectedKnowledgePoints.length} 项)`}
+            {exporting ? '导出中...' : `创建并下载 (${selectedKnowledgePoints.length} 个知识点)`}
           </button>
         </div>
       </form>

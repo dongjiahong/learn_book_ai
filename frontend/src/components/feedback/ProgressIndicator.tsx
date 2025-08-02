@@ -69,10 +69,10 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
               key={index}
               className={`flex items-start space-x-3 p-3 rounded-lg transition-colors ${
                 index === current
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                  ? 'bg-blue-50 border border-blue-200'
                   : index < current
-                  ? 'bg-green-50 dark:bg-green-900/20'
-                  : 'bg-gray-50 dark:bg-gray-800'
+                  ? 'bg-green-50'
+                  : 'bg-gray-50'
               }`}
             >
               {/* Step icon */}
@@ -89,7 +89,7 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
                   <div className={`w-5 h-5 rounded-full border-2 ${
                     index <= current
                       ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300 dark:border-gray-600'
+                      : 'border-gray-300'
                   }`}>
                     {index < current && (
                       <CheckCircleOutlined className="text-white text-xs" />
@@ -104,12 +104,12 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
                   strong={index === current}
                   className={`block ${
                     step.status === 'error'
-                      ? 'text-red-600 dark:text-red-400'
+                      ? 'text-red-600'
                       : index === current
-                      ? 'text-blue-600 dark:text-blue-400'
+                      ? 'text-blue-600'
                       : index < current
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-gray-600 dark:text-gray-400'
+                      ? 'text-green-600'
+                      : 'text-gray-600'
                   } ${isMobile ? 'text-sm' : 'text-base'}`}
                 >
                   {step.title}

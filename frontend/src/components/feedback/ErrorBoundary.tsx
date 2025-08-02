@@ -66,7 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default error UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
           <div className="max-w-md w-full">
             <Result
               status="error"
@@ -99,17 +99,17 @@ export class ErrorBoundary extends Component<Props, State> {
                   
                   {/* Error details in development */}
                   {process.env.NODE_ENV === 'development' && this.state.error && (
-                    <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-left">
+                    <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left">
                       <Text strong className="block mb-2">错误详情（开发模式）：</Text>
-                      <Paragraph className="text-xs font-mono text-red-600 dark:text-red-400 mb-2">
+                      <Paragraph className="text-xs font-mono text-red-600 mb-2">
                         {this.state.error.message}
                       </Paragraph>
                       {this.state.errorInfo && (
                         <details className="text-xs">
-                          <summary className="cursor-pointer text-gray-600 dark:text-gray-400 mb-2">
+                          <summary className="cursor-pointer text-gray-600 mb-2">
                             查看堆栈跟踪
                           </summary>
-                          <pre className="whitespace-pre-wrap text-gray-500 dark:text-gray-500 overflow-auto max-h-40">
+                          <pre className="whitespace-pre-wrap text-gray-500 overflow-auto max-h-40">
                             {this.state.errorInfo.componentStack}
                           </pre>
                         </details>

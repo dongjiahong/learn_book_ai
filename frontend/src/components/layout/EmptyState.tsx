@@ -47,7 +47,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           description={
             <div className="space-y-2">
               <Text
-                className={`block font-medium text-gray-800 dark:text-gray-200 ${isMobile ? 'text-base' : 'text-lg'
+                className={`block font-medium text-gray-800 ${isMobile ? 'text-base' : 'text-lg'
                   }`}
               >
                 {title}
