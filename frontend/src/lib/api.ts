@@ -710,6 +710,10 @@ class ApiClient {
     );
   }
 
+  async getDocument(token: string, id: number): Promise<{ success: boolean; document: Document }> {
+    return this.authenticatedRequest(`/api/documents/${id}`, token);
+  }
+
   async deleteDocument(token: string, id: number): Promise<{ message: string }> {
     return this.authenticatedRequest<{ message: string }>(`/api/documents/${id}`, token, {
       method: 'DELETE',
@@ -1339,7 +1343,7 @@ class ApiClient {
     });
   }
 
-  async exportSettings(token: string): Promise<any> {
+  async exportSettings(token: string): Promise<unknown> {
     return this.authenticatedRequest('/api/settings/export', token);
   }
 }

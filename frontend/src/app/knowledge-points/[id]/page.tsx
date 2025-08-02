@@ -138,19 +138,26 @@ const KnowledgePointDetailPage: React.FC = () => {
       <ResponsiveLayout>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {/* 面包屑导航 */}
-          <Breadcrumb style={{ marginBottom: 24 }}>
-            <Breadcrumb.Item>
-              <Button 
-                type="link" 
-                icon={<BookOutlined />}
-                onClick={() => router.push('/knowledge-points')}
-                style={{ padding: 0 }}
-              >
-                知识点管理
-              </Button>
-            </Breadcrumb.Item>
-            <Breadcrumb.Item>知识点详情</Breadcrumb.Item>
-          </Breadcrumb>
+          <Breadcrumb 
+            style={{ marginBottom: 24 }}
+            items={[
+              {
+                title: (
+                  <Button 
+                    type="link" 
+                    icon={<BookOutlined />}
+                    onClick={() => router.push('/knowledge-points')}
+                    style={{ padding: 0 }}
+                  >
+                    知识点管理
+                  </Button>
+                )
+              },
+              {
+                title: '知识点详情'
+              }
+            ]}
+          />
 
           {/* 头部操作区 */}
           <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
