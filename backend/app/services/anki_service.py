@@ -263,17 +263,75 @@ class AnkiService:
         
         return cards
 
+    def count_cards_from_records(
+        self, 
+        user_id: int, 
+        knowledge_base_ids: Optional[List[int]] = None,
+        db: Session = None
+    ) -> int:
+        """Count cards that would be generated from knowledge points"""
+        if not db:
+            db = next(get_db())
+        
+        # Only count knowledge points (removed Q&A records functionality)
+        kp_query = db.query(KnowledgePoint).join(Document)
+        
+        if knowledge_base_ids:
+            kp_query = kp_query.filter(Document.knowledge_base_id.in_(knowledge_base_ids))
+        
+        # Only count knowledge points that have questions
+        knowledge_points = kp_query.filter(
+            KnowledgePoint.question.isnot(None),
+            KnowledgePoint.question != ""
+        ).all()
+        
+        return len(knowledge_points)
+
+    def count_cards_from_knowledge_base(
+        self, 
+        user_id: int, 
+        knowledge_base_id: int,
+        db: Session = None
+    ) -> int:
+        """Count cards that would be generated from a specific knowledge base"""
+        return self.count_cards_from_records(
+            user_id=user_id,
+            knowledge_base_ids=[knowledge_base_id],
+            db=db
+        )
+
+    def count_cards_from_custom(
+        self,
+        user_id: int,
+        knowledge_point_ids: Optional[List[int]] = None,
+        db: Session = None
+    ) -> int:
+        """Count cards that would be generated from specific knowledge points"""
+        if not db:
+            db = next(get_db())
+        
+        if not knowledge_point_ids:
+            return 0
+        
+        # Count specific knowledge points that have questions
+        knowledge_points = db.query(KnowledgePoint).join(Document).join(KnowledgeBase).filter(
+            KnowledgePoint.id.in_(knowledge_point_ids),
+            KnowledgeBase.user_id == user_id,
+            KnowledgePoint.question.isnot(None),
+            KnowledgePoint.question != ""
+        ).all()
+        
+        return len(knowledge_points)
+
     def generate_deck_from_records(
         self, 
         user_id: int, 
         deck_name: str,
         knowledge_base_ids: Optional[List[int]] = None,
-        include_qa: bool = True,
-        include_kp: bool = True,
         db: Session = None
     ) -> str:
         """
-        Generate Anki deck from user's answer records and knowledge points
+        Generate Anki deck from knowledge points only (removed Q&A records)
         Returns the path to the generated .apkg file
         """
         if not db:
@@ -285,29 +343,15 @@ class AnkiService:
         
         all_cards = []
         
-        if include_qa:
-            # Get answer records
-            qa_query = db.query(AnswerRecord).filter(AnswerRecord.user_id == user_id)
-            
-            if knowledge_base_ids:
-                qa_query = qa_query.join(Question).join(Document).filter(
-                    Document.knowledge_base_id.in_(knowledge_base_ids)
-                )
-            
-            answer_records = qa_query.all()
-            qa_cards = self.create_qa_cards_from_records(answer_records)
-            all_cards.extend(qa_cards)
+        # Only get knowledge points (removed Q&A records functionality)
+        kp_query = db.query(KnowledgePoint).join(Document)
         
-        if include_kp:
-            # Get knowledge points
-            kp_query = db.query(KnowledgePoint).join(Document)
-            
-            if knowledge_base_ids:
-                kp_query = kp_query.filter(Document.knowledge_base_id.in_(knowledge_base_ids))
-            
-            knowledge_points = kp_query.all()
-            kp_cards = self.create_kp_cards_from_points(knowledge_points)
-            all_cards.extend(kp_cards)
+        if knowledge_base_ids:
+            kp_query = kp_query.filter(Document.knowledge_base_id.in_(knowledge_base_ids))
+        
+        knowledge_points = kp_query.all()
+        kp_cards = self.create_kp_cards_from_points(knowledge_points)
+        all_cards.extend(kp_cards)
         
         # Add cards to deck
         for card in all_cards:
@@ -328,11 +372,9 @@ class AnkiService:
         self, 
         user_id: int, 
         knowledge_base_id: int,
-        include_qa: bool = True,
-        include_kp: bool = True,
         db: Session = None
     ) -> str:
-        """Generate Anki deck from a specific knowledge base"""
+        """Generate Anki deck from a specific knowledge base (knowledge points only)"""
         if not db:
             db = next(get_db())
         
@@ -351,8 +393,6 @@ class AnkiService:
             user_id=user_id,
             deck_name=deck_name,
             knowledge_base_ids=[knowledge_base_id],
-            include_qa=include_qa,
-            include_kp=include_kp,
             db=db
         )
 
@@ -360,11 +400,10 @@ class AnkiService:
         self,
         user_id: int,
         deck_name: str,
-        answer_record_ids: Optional[List[int]] = None,
         knowledge_point_ids: Optional[List[int]] = None,
         db: Session = None
     ) -> str:
-        """Generate custom Anki deck from specific records and knowledge points"""
+        """Generate custom Anki deck from specific knowledge points only"""
         if not db:
             db = next(get_db())
         
@@ -374,16 +413,7 @@ class AnkiService:
         
         all_cards = []
         
-        # Add specific answer records
-        if answer_record_ids:
-            answer_records = db.query(AnswerRecord).filter(
-                AnswerRecord.id.in_(answer_record_ids),
-                AnswerRecord.user_id == user_id
-            ).all()
-            qa_cards = self.create_qa_cards_from_records(answer_records)
-            all_cards.extend(qa_cards)
-        
-        # Add specific knowledge points
+        # Add specific knowledge points only (removed answer records)
         if knowledge_point_ids:
             knowledge_points = db.query(KnowledgePoint).join(Document).join(KnowledgeBase).filter(
                 KnowledgePoint.id.in_(knowledge_point_ids),

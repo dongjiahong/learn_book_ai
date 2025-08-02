@@ -23,31 +23,22 @@ class AnkiExportRequest(BaseModel):
     """Request model for Anki export"""
     deck_name: str
     knowledge_base_ids: Optional[List[int]] = None
-    include_qa: bool = True
-    include_kp: bool = True
 
 
 class CustomAnkiExportRequest(BaseModel):
     """Request model for custom Anki export"""
     deck_name: str
-    answer_record_ids: Optional[List[int]] = None
     knowledge_point_ids: Optional[List[int]] = None
 
 
-class AnkiExportResponse(BaseModel):
-    """Response model for Anki export"""
-    export_id: str
-    deck_name: str
-    file_path: str
-    created_at: datetime
-    card_count: int
+
 
 
 # In-memory storage for export files (in production, use Redis or database)
 export_files = {}
 
 
-@router.post("/export", response_model=AnkiExportResponse)
+@router.post("/export")
 async def export_anki_deck(
     request: AnkiExportRequest,
     current_user: User = Depends(get_current_user),
@@ -73,13 +64,18 @@ async def export_anki_deck(
             user_id=current_user.id,
             deck_name=request.deck_name,
             knowledge_base_ids=request.knowledge_base_ids,
-            include_qa=request.include_qa,
-            include_kp=request.include_kp,
             db=db
         )
         
         # Generate export ID
         export_id = f"export_{current_user.id}_{int(datetime.now().timestamp())}"
+        
+        # Calculate actual card count
+        card_count = anki_service.count_cards_from_records(
+            user_id=current_user.id,
+            knowledge_base_ids=request.knowledge_base_ids,
+            db=db
+        )
         
         # Store export info
         export_info = {
@@ -88,22 +84,26 @@ async def export_anki_deck(
             "file_path": file_path,
             "created_at": datetime.now(),
             "user_id": current_user.id,
-            "card_count": 0  # TODO: Calculate actual card count
+            "card_count": card_count
         }
         
         export_files[export_id] = export_info
         
-        return AnkiExportResponse(**export_info)
+        return {
+            "success": True,
+            "export_id": export_id,
+            "deck_name": request.deck_name,
+            "card_count": card_count,
+            "created_at": export_info["created_at"].isoformat()
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-@router.post("/export/knowledge-base/{knowledge_base_id}", response_model=AnkiExportResponse)
+@router.post("/export/knowledge-base/{knowledge_base_id}")
 async def export_knowledge_base_deck(
     knowledge_base_id: int,
-    include_qa: bool = True,
-    include_kp: bool = True,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -122,13 +122,18 @@ async def export_knowledge_base_deck(
         file_path = anki_service.generate_deck_from_knowledge_base(
             user_id=current_user.id,
             knowledge_base_id=knowledge_base_id,
-            include_qa=include_qa,
-            include_kp=include_kp,
             db=db
         )
         
         # Generate export ID
         export_id = f"kb_export_{current_user.id}_{knowledge_base_id}_{int(datetime.now().timestamp())}"
+        
+        # Calculate actual card count
+        card_count = anki_service.count_cards_from_knowledge_base(
+            user_id=current_user.id,
+            knowledge_base_id=knowledge_base_id,
+            db=db
+        )
         
         # Store export info
         export_info = {
@@ -137,12 +142,18 @@ async def export_knowledge_base_deck(
             "file_path": file_path,
             "created_at": datetime.now(),
             "user_id": current_user.id,
-            "card_count": 0  # TODO: Calculate actual card count
+            "card_count": card_count
         }
         
         export_files[export_id] = export_info
         
-        return AnkiExportResponse(**export_info)
+        return {
+            "success": True,
+            "export_id": export_id,
+            "deck_name": f"RAG Learning - {kb.name}",
+            "card_count": card_count,
+            "created_at": export_info["created_at"].isoformat()
+        }
         
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -150,7 +161,7 @@ async def export_knowledge_base_deck(
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-@router.post("/export/custom", response_model=AnkiExportResponse)
+@router.post("/export/custom")
 async def export_custom_deck(
     request: CustomAnkiExportRequest,
     current_user: User = Depends(get_current_user),
@@ -162,13 +173,19 @@ async def export_custom_deck(
         file_path = anki_service.generate_custom_deck(
             user_id=current_user.id,
             deck_name=request.deck_name,
-            answer_record_ids=request.answer_record_ids,
             knowledge_point_ids=request.knowledge_point_ids,
             db=db
         )
         
         # Generate export ID
         export_id = f"custom_export_{current_user.id}_{int(datetime.now().timestamp())}"
+        
+        # Calculate actual card count
+        card_count = anki_service.count_cards_from_custom(
+            user_id=current_user.id,
+            knowledge_point_ids=request.knowledge_point_ids,
+            db=db
+        )
         
         # Store export info
         export_info = {
@@ -177,12 +194,18 @@ async def export_custom_deck(
             "file_path": file_path,
             "created_at": datetime.now(),
             "user_id": current_user.id,
-            "card_count": 0  # TODO: Calculate actual card count
+            "card_count": card_count
         }
         
         export_files[export_id] = export_info
         
-        return AnkiExportResponse(**export_info)
+        return {
+            "success": True,
+            "export_id": export_id,
+            "deck_name": request.deck_name,
+            "card_count": card_count,
+            "created_at": export_info["created_at"].isoformat()
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
@@ -242,7 +265,7 @@ async def list_user_exports(
         {
             "export_id": export_id,
             "deck_name": info["deck_name"],
-            "created_at": info["created_at"],
+            "created_at": info["created_at"].isoformat() if hasattr(info["created_at"], 'isoformat') else str(info["created_at"]),
             "card_count": info["card_count"]
         }
         for export_id, info in export_files.items()
@@ -261,8 +284,16 @@ async def delete_export(
     current_user: User = Depends(get_current_user)
 ):
     """Delete an export and its associated file"""
+    # Log available export IDs for debugging
+    available_exports = [eid for eid, info in export_files.items() if info["user_id"] == current_user.id]
+    print(f"Delete request for export_id: {export_id}")
+    print(f"Available exports for user {current_user.id}: {available_exports}")
+    
     if export_id not in export_files:
-        raise HTTPException(status_code=404, detail="Export not found")
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Export not found. Available exports: {available_exports}"
+        )
     
     export_info = export_files[export_id]
     
@@ -279,7 +310,8 @@ async def delete_export(
         temp_dir = os.path.dirname(file_path)
         if os.path.exists(temp_dir) and not os.listdir(temp_dir):
             os.rmdir(temp_dir)
-    except Exception:
+    except Exception as e:
+        print(f"File cleanup error: {e}")
         pass  # Ignore cleanup errors
     
     # Remove from memory

@@ -487,7 +487,7 @@ class KnowledgePointService:
             return {
                 "total_knowledge_points": total_count,
                 "by_importance_level": {
-                    str(level): count for level, count in importance_stats
+                    level: count for level, count in importance_stats
                 },
                 "top_documents": [
                     {"filename": filename, "count": count}
