@@ -140,10 +140,10 @@ const KnowledgePointList: React.FC<KnowledgePointListProps> = ({
   // Refresh when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      loadKnowledgePoints(pagination.current, pagination.pageSize);
+      loadKnowledgePoints(1, 20); // 重置到第一页
       loadStatistics();
     }
-  }, [refreshTrigger, loadKnowledgePoints, loadStatistics, pagination.pageSize, pagination]);
+  }, [refreshTrigger, loadKnowledgePoints, loadStatistics]);
 
 
 

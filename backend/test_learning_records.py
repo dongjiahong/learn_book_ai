@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import datetime, timedelta
-from app.services.spaced_repetition_service import spaced_repetition_service
+from app.services.spaced_repetition_service import SpacedRepetitionService
 
 
 def test_spaced_repetition_service():
@@ -16,7 +16,7 @@ def test_spaced_repetition_service():
     
     # Test initial values
     print("\n1. Testing initial values:")
-    interval, ease_factor, next_review = spaced_repetition_service.get_initial_values()
+    interval, ease_factor, next_review = SpacedRepetitionService.get_initial_values()
     print(f"Initial interval: {interval} days")
     print(f"Initial ease factor: {ease_factor}")
     print(f"Initial next review: {next_review}")
@@ -26,7 +26,7 @@ def test_spaced_repetition_service():
     
     # Test case 1: Not learned (mastery_level = 0)
     print("\nCase 1: Not learned (mastery_level = 0)")
-    interval, ease_factor, next_review = spaced_repetition_service.calculate_next_review(
+    interval, ease_factor, next_review = SpacedRepetitionService.calculate_next_review(
         mastery_level=0,
         current_ease_factor=2.5,
         current_interval=1,
@@ -38,7 +38,7 @@ def test_spaced_repetition_service():
     
     # Test case 2: Learning (mastery_level = 1)
     print("\nCase 2: Learning (mastery_level = 1)")
-    interval, ease_factor, next_review = spaced_repetition_service.calculate_next_review(
+    interval, ease_factor, next_review = SpacedRepetitionService.calculate_next_review(
         mastery_level=1,
         current_ease_factor=2.5,
         current_interval=1,
@@ -50,7 +50,7 @@ def test_spaced_repetition_service():
     
     # Test case 3: Mastered (mastery_level = 2)
     print("\nCase 3: Mastered (mastery_level = 2)")
-    interval, ease_factor, next_review = spaced_repetition_service.calculate_next_review(
+    interval, ease_factor, next_review = SpacedRepetitionService.calculate_next_review(
         mastery_level=2,
         current_ease_factor=2.5,
         current_interval=1,
@@ -68,7 +68,7 @@ def test_spaced_repetition_service():
     
     for i in range(5):
         mastery_level = 2 if i > 2 else 1  # Start learning, then master
-        interval, ease_factor, next_review = spaced_repetition_service.calculate_next_review(
+        interval, ease_factor, next_review = SpacedRepetitionService.calculate_next_review(
             mastery_level=mastery_level,
             current_ease_factor=current_ease,
             current_interval=current_interval,
@@ -87,7 +87,7 @@ def test_spaced_repetition_service():
     now = datetime.now()
     
     # High priority: not learned and overdue
-    priority = spaced_repetition_service.get_study_priority(
+    priority = SpacedRepetitionService.get_study_priority(
         mastery_level=0,
         next_review=now - timedelta(days=2),
         importance_level=5
@@ -95,7 +95,7 @@ def test_spaced_repetition_service():
     print(f"Not learned, overdue, high importance: {priority:.2f}")
     
     # Medium priority: learning and due
-    priority = spaced_repetition_service.get_study_priority(
+    priority = SpacedRepetitionService.get_study_priority(
         mastery_level=1,
         next_review=now,
         importance_level=3
@@ -103,7 +103,7 @@ def test_spaced_repetition_service():
     print(f"Learning, due, medium importance: {priority:.2f}")
     
     # Low priority: mastered and not due
-    priority = spaced_repetition_service.get_study_priority(
+    priority = SpacedRepetitionService.get_study_priority(
         mastery_level=2,
         next_review=now + timedelta(days=5),
         importance_level=1
@@ -114,7 +114,7 @@ def test_spaced_repetition_service():
     print("\n5. Testing recommended study time:")
     for mastery in [0, 1, 2]:
         for importance in [1, 3, 5]:
-            time = spaced_repetition_service.get_recommended_study_time(mastery, importance)
+            time = SpacedRepetitionService.get_recommended_study_time(mastery, importance)
             print(f"Mastery {mastery}, Importance {importance}: {time} minutes")
     
     print("\n✅ All spaced repetition tests completed successfully!")
@@ -128,16 +128,16 @@ def test_is_due_for_review():
     
     # Past date - should be due
     past_date = now - timedelta(hours=1)
-    is_due = spaced_repetition_service.is_due_for_review(past_date)
+    is_due = SpacedRepetitionService.is_due_for_review(past_date)
     print(f"Past date ({past_date}): {is_due}")
     
     # Future date - should not be due
     future_date = now + timedelta(hours=1)
-    is_due = spaced_repetition_service.is_due_for_review(future_date)
+    is_due = SpacedRepetitionService.is_due_for_review(future_date)
     print(f"Future date ({future_date}): {is_due}")
     
     # Current time - should be due
-    is_due = spaced_repetition_service.is_due_for_review(now)
+    is_due = SpacedRepetitionService.is_due_for_review(now)
     print(f"Current time ({now}): {is_due}")
 
 
@@ -155,7 +155,7 @@ def test_retention_rate():
     ]
     
     for mastery, days, ease in test_cases:
-        retention = spaced_repetition_service.calculate_retention_rate(mastery, days, ease)
+        retention = SpacedRepetitionService.calculate_retention_rate(mastery, days, ease)
         print(f"Mastery {mastery}, {days} days, ease {ease}: {retention:.2%} retention")
 
 

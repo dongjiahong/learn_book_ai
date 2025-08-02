@@ -31,6 +31,8 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient, LearningSetDetailResponse, LearningSetItem } from '@/lib/api';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -158,33 +160,26 @@ export default function LearningSetDetailPage() {
     }).length;
   };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex justify-center items-center h-64">
-          <Spin size="large" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!learningSet) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <Card>
-          <Empty description="学习集不存在" />
-        </Card>
-      </div>
-    );
-  }
-
-  const progress = (learningSet.total_items || 0) > 0 
-    ? ((learningSet.mastered_items || 0) / (learningSet.total_items || 0)) * 100 
-    : 0;
-  const dueItemsCount = getDueItemsCount();
-
   return (
-    <div className="container mx-auto px-4 py-6">
+    <ProtectedRoute>
+      <MainLayout>
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Spin size="large" />
+          </div>
+        ) : !learningSet ? (
+          <Card>
+            <Empty description="学习集不存在" />
+          </Card>
+        ) : (
+          <div className="container mx-auto px-4 py-6">{(() => {
+            const progress = (learningSet.total_items || 0) > 0 
+              ? ((learningSet.mastered_items || 0) / (learningSet.total_items || 0)) * 100 
+              : 0;
+            const dueItemsCount = getDueItemsCount();
+            
+            return (
+              <>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -395,6 +390,12 @@ export default function LearningSetDetailPage() {
           <Empty description="暂无知识点" />
         )}
       </Card>
-    </div>
+              </>
+            );
+          })()}
+          </div>
+        )}
+      </MainLayout>
+    </ProtectedRoute>
   );
 }

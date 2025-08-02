@@ -667,14 +667,14 @@ async def get_next_review_item(
         knowledge_point, learning_record = due_items[0]
         
         # Calculate priority using spaced repetition service
-        from ..services.spaced_repetition_service import spaced_repetition_service
-        priority = spaced_repetition_service.get_study_priority(
+        from ..services.spaced_repetition_service import SpacedRepetitionService
+        priority = SpacedRepetitionService.get_study_priority(
             mastery_level=learning_record.mastery_level if learning_record else 0,
             next_review=learning_record.next_review if learning_record else datetime.now(),
             importance_level=knowledge_point.importance_level
         )
         
-        recommended_time = spaced_repetition_service.get_recommended_study_time(
+        recommended_time = SpacedRepetitionService.get_recommended_study_time(
             mastery_level=learning_record.mastery_level if learning_record else 0,
             importance_level=knowledge_point.importance_level
         )

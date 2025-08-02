@@ -1447,7 +1447,7 @@ class CRUDLearningRecord(CRUDBase[None, None, None]):
         """Update mastery level and calculate next review time using SuperMemo SM-2 algorithm"""
         try:
             from datetime import datetime
-            from ..services.spaced_repetition_service import spaced_repetition_service
+            from ..services.spaced_repetition_service import SpacedRepetitionService
             
             record = self.get_or_create(
                 db=db,
@@ -1462,7 +1462,7 @@ class CRUDLearningRecord(CRUDBase[None, None, None]):
             record.last_reviewed = datetime.now()
             
             # Calculate next review time using SuperMemo SM-2 algorithm
-            new_interval, new_ease_factor, next_review = spaced_repetition_service.calculate_next_review(
+            new_interval, new_ease_factor, next_review = SpacedRepetitionService.calculate_next_review(
                 mastery_level=mastery_level,
                 current_ease_factor=record.ease_factor,
                 current_interval=record.interval_days,

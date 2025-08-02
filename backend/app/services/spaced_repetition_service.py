@@ -365,4 +365,11 @@ class SpacedRepetitionService:
             raise Exception(f"Failed to schedule new item: {str(e)}")
 
 
-# Note: Service instance creation moved to where it's needed since it requires db parameter
+# Create a service instance factory function
+def get_spaced_repetition_service(db: Session) -> SpacedRepetitionService:
+    """Factory function to create SpacedRepetitionService instance"""
+    return SpacedRepetitionService(db)
+
+# For backward compatibility, create a service instance that can be imported
+# Note: This will be None until initialized with a database session
+spaced_repetition_service = None

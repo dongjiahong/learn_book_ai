@@ -115,7 +115,7 @@ export default function LearningCard({
               </div>
             }
             className="mb-4"
-            headStyle={{ backgroundColor: '#fff7e6', borderBottom: '1px solid #ffd591' }}
+            styles={{ header: { backgroundColor: '#fff7e6', borderBottom: '1px solid #ffd591' } }}
           >
             <Paragraph className="text-lg mb-0 text-center font-medium">
               {knowledgePoint.question}
@@ -143,7 +143,7 @@ export default function LearningCard({
             </div>
           }
           className="mb-6"
-          headStyle={{ backgroundColor: '#f6ffed', borderBottom: '1px solid #b7eb8f' }}
+          styles={{ header: { backgroundColor: '#f6ffed', borderBottom: '1px solid #b7eb8f' } }}
         >
           {showContent ? (
             <div className="min-h-[120px]">
@@ -156,7 +156,7 @@ export default function LearningCard({
               <div className="text-center py-8">
                 <EyeOutlined className="text-4xl text-gray-300 mb-3" />
                 <Text type="secondary" className="text-base">
-                  点击"查看内容"按钮查看知识点详细内容
+                  点击"查看内容&quot;按钮查看知识点详细内容
                 </Text>
               </div>
             </div>
