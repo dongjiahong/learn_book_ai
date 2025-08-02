@@ -352,9 +352,9 @@ const KnowledgePointsPage: React.FC = () => {
                     style={{ width: '100%', marginTop: 8 }}
                   />
                   <Text type="secondary" style={{ fontSize: '12px', marginTop: 4, display: 'block' }}>
-                    {targetCount && targetCount > 15 
-                      ? `大于15个知识点将分阶段提取，预计需要${Math.ceil(targetCount / 15)}个阶段`
-                      : '建议范围：1-100个知识点'
+                    {targetCount && targetCount > 5 
+                      ? `大于5个知识点将分阶段提取，预计需要${Math.ceil(targetCount / 5)}个阶段`
+                      : '建议范围：1-50个知识点'
                     }
                   </Text>
                 </div>

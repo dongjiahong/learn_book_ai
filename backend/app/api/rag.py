@@ -161,48 +161,6 @@ async def clear_index(
         raise HTTPException(status_code=500, detail=f"Failed to clear index: {str(e)}")
 
 
-@router.post("/generate-questions")
-async def generate_questions_from_documents(
-    query: str = Form(...),
-    num_questions: int = Form(default=5),
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """Generate questions based on retrieved documents"""
-    try:
-        if not query.strip():
-            raise HTTPException(status_code=400, detail="Query cannot be empty")
-        
-        if num_questions < 1 or num_questions > 10:
-            raise HTTPException(status_code=400, detail="num_questions must be between 1 and 10")
-        
-        # Get similar documents first
-        similar_docs = await rag_service.get_similar_documents(query.strip(), top_k=3)
-        
-        if not similar_docs:
-            return {
-                "success": False,
-                "error": "No relevant documents found",
-                "questions": []
-            }
-        
-        # Combine document content
-        content = "\n\n".join([doc["content"] for doc in similar_docs])
-        
-        # Import model service to generate questions
-        from ..services.model_service import model_service
-        questions = await model_service.generate_questions(content, num_questions)
-        
-        return {
-            "success": True,
-            "questions": questions,
-            "source_documents": len(similar_docs),
-            "query": query.strip()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
-
-
 @router.post("/extract-knowledge-points")
 async def extract_knowledge_points_from_documents(
     query: str = Form(...),

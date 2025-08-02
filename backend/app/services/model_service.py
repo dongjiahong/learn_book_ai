@@ -50,102 +50,6 @@ class ModelService:
             logger.error(f"Text generation failed: {e}")
             raise
     
-    async def generate_questions(self, content: str, num_questions: int = 5) -> list[str]:
-        """Generate questions based on content"""
-        prompt = f"""
-基于以下内容生成 {num_questions} 个学习问题。问题应该：
-1. 涵盖内容的关键知识点
-2. 难度适中，适合学习者测试理解程度
-3. 问题表述清晰明确
-4. 每个问题独立成行
-
-内容：
-{content}
-
-请生成问题：
-"""
-        
-        try:
-            response = await self.generate_text(prompt, temperature=0.7)
-            # Parse questions from response
-            questions = []
-            for line in response.strip().split('\n'):
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    # Remove numbering if present
-                    if line[0].isdigit() and '.' in line[:5]:
-                        line = line.split('.', 1)[1].strip()
-                    questions.append(line)
-            
-            return questions[:num_questions]
-        except Exception as e:
-            logger.error(f"Question generation failed: {e}")
-            raise
-    
-    async def evaluate_answer(self, question: str, user_answer: str, reference_content: str) -> Dict[str, Any]:
-        """Evaluate user answer against reference content"""
-        prompt = f"""
-请评估以下答案的质量。评估标准：
-1. 准确性：答案是否正确
-2. 完整性：答案是否完整
-3. 清晰度：表达是否清晰
-
-问题：{question}
-
-用户答案：{user_answer}
-
-参考内容：{reference_content}
-
-请提供：
-1. 评分（0-10分）
-2. 详细反馈
-3. 参考答案
-
-格式：
-评分：X分
-反馈：[详细反馈]
-参考答案：[标准答案]
-"""
-        
-        try:
-            response = await self.generate_text(prompt, temperature=0.3)
-            
-            # Parse evaluation response
-            lines = response.strip().split('\n')
-            score = 0
-            feedback = ""
-            reference_answer = ""
-            
-            current_section = None
-            for line in lines:
-                line = line.strip()
-                if line.startswith('评分：'):
-                    score_text = line.replace('评分：', '').replace('分', '').strip()
-                    try:
-                        score = float(score_text)
-                    except ValueError:
-                        score = 0
-                elif line.startswith('反馈：'):
-                    current_section = 'feedback'
-                    feedback = line.replace('反馈：', '').strip()
-                elif line.startswith('参考答案：'):
-                    current_section = 'reference'
-                    reference_answer = line.replace('参考答案：', '').strip()
-                elif current_section == 'feedback' and line:
-                    feedback += '\n' + line
-                elif current_section == 'reference' and line:
-                    reference_answer += '\n' + line
-            
-            return {
-                'score': min(max(score, 0), 10),  # Ensure score is between 0-10
-                'feedback': feedback.strip(),
-                'reference_answer': reference_answer.strip()
-            }
-            
-        except Exception as e:
-            logger.error(f"Answer evaluation failed: {e}")
-            raise
-    
     async def extract_knowledge_points(self, content: str, target_count: Optional[int] = None) -> list[Dict[str, Any]]:
         """Extract key knowledge points from content"""
         
@@ -154,7 +58,7 @@ class ModelService:
             return await self._extract_knowledge_points_default(content)
         
         # For large target counts, use staged extraction
-        if target_count > 15:
+        if target_count > 5:
             return await self._extract_knowledge_points_staged(content, target_count)
         else:
             return await self._extract_knowledge_points_single(content, target_count)
@@ -226,8 +130,8 @@ class ModelService:
         """Extract knowledge points in multiple stages to handle large counts"""
         all_knowledge_points = []
         
-        # Calculate how many stages we need (max 15 points per stage)
-        points_per_stage = 15
+        # Calculate how many stages we need (max 5 points per stage)
+        points_per_stage = 5
         stages = (target_count + points_per_stage - 1) // points_per_stage
         
         logger.info(f"Extracting {target_count} knowledge points in {stages} stages")

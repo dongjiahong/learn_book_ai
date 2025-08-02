@@ -78,42 +78,6 @@ async def generate_text(
         raise HTTPException(status_code=500, detail=f"Text generation failed: {str(e)}")
 
 
-@router.post("/generate-questions")
-async def generate_questions(
-    content: str,
-    num_questions: int = 5,
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """Generate questions based on content"""
-    try:
-        questions = await model_service.generate_questions(content, num_questions)
-        return {
-            "success": True,
-            "questions": questions,
-            "count": len(questions)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Question generation failed: {str(e)}")
-
-
-@router.post("/evaluate-answer")
-async def evaluate_answer(
-    question: str,
-    user_answer: str,
-    reference_content: str,
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """Evaluate user answer against reference content"""
-    try:
-        evaluation = await model_service.evaluate_answer(question, user_answer, reference_content)
-        return {
-            "success": True,
-            "evaluation": evaluation
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Answer evaluation failed: {str(e)}")
-
-
 @router.post("/extract-knowledge-points")
 async def extract_knowledge_points(
     content: str,
