@@ -29,6 +29,8 @@ import {
 } from '@ant-design/icons';
 import { apiClient } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { ResponsiveLayout } from '@/components/layout/ResponsiveLayout';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -46,7 +48,6 @@ interface ModelSettings {
   embedding_provider: string;
   embedding_model: string;
   embedding_dimension: number;
-  openai_embedding_model: string;
   openai_embedding_dimension: number;
   temperature: number;
   max_tokens: number;
@@ -73,17 +74,17 @@ export default function SettingsPage() {
   // 加载设置
   const loadSettings = async () => {
     if (!tokens?.access_token) return;
-    
+
     try {
       setLoading(true);
       const [settingsResponse, statusResponse] = await Promise.all([
         apiClient.getModelSettings(tokens.access_token),
         apiClient.getModelStatus(tokens.access_token)
       ]);
-      
+
       setSettings(settingsResponse);
       setStatus(statusResponse);
-      
+
       // 设置表单值
       form.setFieldsValue({
         provider: settingsResponse.provider,
@@ -112,12 +113,12 @@ export default function SettingsPage() {
   // 保存设置
   const handleSave = async (values: any) => {
     if (!tokens?.access_token) return;
-    
+
     try {
       setLoading(true);
-      
-      const updateData: any = {};
-      
+
+      const updateData: Record<string, any> = {};
+
       // 只发送有变化的字段
       if (values.provider !== settings?.provider) {
         updateData.provider = values.provider;
@@ -167,7 +168,7 @@ export default function SettingsPage() {
 
       await apiClient.updateModelSettings(tokens.access_token, updateData);
       message.success('设置保存成功');
-      
+
       // 重新加载设置
       await loadSettings();
     } catch (error) {
@@ -181,11 +182,11 @@ export default function SettingsPage() {
   // 测试连接
   const testConnection = async (provider: string) => {
     if (!tokens?.access_token) return;
-    
+
     try {
       setTestingConnection(provider);
       const response = await apiClient.testModelConnection(tokens.access_token, provider);
-      
+
       if (response.success) {
         message.success(`${provider} 连接测试成功`);
       } else {
@@ -227,7 +228,7 @@ export default function SettingsPage() {
                   <Option value="openai">OpenAI</Option>
                 </Select>
               </Form.Item>
-              
+
               <Form.Item
                 label="备用提供商"
                 name="fallback_provider"
@@ -241,7 +242,7 @@ export default function SettingsPage() {
           </Card>
 
           {/* OpenAI 配置 */}
-          <Card 
+          <Card
             title={
               <div className="flex items-center justify-between">
                 <span>
@@ -271,11 +272,11 @@ export default function SettingsPage() {
                 name="openai_api_key"
                 extra={settings?.openai_api_key_set ? "API Key 已设置" : "请输入 OpenAI API Key"}
               >
-                <Input.Password 
+                <Input.Password
                   placeholder={settings?.openai_api_key_set ? "••••••••••••••••" : "sk-..."}
                 />
               </Form.Item>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Form.Item
                   label="API 基础 URL"
@@ -283,34 +284,26 @@ export default function SettingsPage() {
                 >
                   <Input placeholder="https://api.openai.com/v1" />
                 </Form.Item>
-                
+
                 <Form.Item
                   label="聊天模型"
                   name="openai_model"
                 >
-                  <Select>
-                    <Option value="gpt-4">GPT-4</Option>
-                    <Option value="gpt-4-turbo">GPT-4 Turbo</Option>
-                    <Option value="gpt-3.5-turbo">GPT-3.5 Turbo</Option>
-                  </Select>
+                  <Input placeholder="gpt-4" />
                 </Form.Item>
               </div>
-              
+
               <Form.Item
                 label="嵌入模型"
                 name="openai_embedding_model"
               >
-                <Select>
-                  <Option value="text-embedding-3-large">text-embedding-3-large</Option>
-                  <Option value="text-embedding-3-small">text-embedding-3-small</Option>
-                  <Option value="text-embedding-ada-002">text-embedding-ada-002</Option>
-                </Select>
+                <Input placeholder="text-embedding-3-large" />
               </Form.Item>
             </div>
           </Card>
 
           {/* Ollama 配置 */}
-          <Card 
+          <Card
             title={
               <div className="flex items-center justify-between">
                 <span>
@@ -341,7 +334,7 @@ export default function SettingsPage() {
               >
                 <Input placeholder="http://localhost:11434" />
               </Form.Item>
-              
+
               <Form.Item
                 label="模型名称"
                 name="ollama_model"
@@ -366,7 +359,7 @@ export default function SettingsPage() {
                   style={{ width: '100%' }}
                 />
               </Form.Item>
-              
+
               <Form.Item
                 label="最大令牌数"
                 name="max_tokens"
@@ -405,7 +398,7 @@ export default function SettingsPage() {
                   <Option value="openai">OpenAI</Option>
                 </Select>
               </Form.Item>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Form.Item
                   label="Ollama 嵌入模型"
@@ -413,7 +406,7 @@ export default function SettingsPage() {
                 >
                   <Input placeholder="shaw/dmeta-embedding-zh-small-q4" />
                 </Form.Item>
-                
+
                 <Form.Item
                   label="嵌入维度"
                   name="embedding_dimension"
@@ -425,21 +418,17 @@ export default function SettingsPage() {
                   />
                 </Form.Item>
               </div>
-              
+
               <Divider>OpenAI 嵌入配置</Divider>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Form.Item
                   label="OpenAI 嵌入模型"
                   name="openai_embedding_model"
                 >
-                  <Select>
-                    <Option value="text-embedding-3-large">text-embedding-3-large (3072维)</Option>
-                    <Option value="text-embedding-3-small">text-embedding-3-small (1536维)</Option>
-                    <Option value="text-embedding-ada-002">text-embedding-ada-002 (1536维)</Option>
-                  </Select>
+                  <Input placeholder="text-embedding-3-large" />
                 </Form.Item>
-                
+
                 <Form.Item
                   label="OpenAI 嵌入维度"
                   name="openai_embedding_dimension"
@@ -460,68 +449,76 @@ export default function SettingsPage() {
 
   if (loading && !settings) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Spin size="large" />
-      </div>
+      <ProtectedRoute>
+        <ResponsiveLayout>
+          <div className="flex justify-center items-center h-64">
+            <Spin size="large" />
+          </div>
+        </ResponsiveLayout>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="mb-6">
-        <Title level={2}>
-          <SettingOutlined className="mr-2" />
-          系统设置
-        </Title>
-        <Text type="secondary">
-          配置模型提供商、API 密钥和其他系统参数
-        </Text>
-      </div>
+    <ProtectedRoute>
+      <ResponsiveLayout>
+        <div className="max-w-6xl mx-auto p-6">
+          <div className="mb-6">
+            <Title level={2}>
+              <SettingOutlined className="mr-2" />
+              系统设置
+            </Title>
+            <Text type="secondary">
+              配置模型提供商、API 密钥和其他系统参数
+            </Text>
+          </div>
 
-      {status && (
-        <Alert
-          message="当前状态"
-          description={
-            <div className="space-y-1">
-              <div>主要提供商: <Tag color="blue">{status.active_provider}</Tag></div>
-              {status.fallback_provider && (
-                <div>备用提供商: <Tag color="orange">{status.fallback_provider}</Tag></div>
-              )}
-              <div>嵌入提供商: <Tag color="green">{status.embedding_provider}</Tag></div>
-            </div>
-          }
-          type="info"
-          showIcon
-          className="mb-6"
-        />
-      )}
+          {status && (
+            <Alert
+              message="当前状态"
+              description={
+                <div className="space-y-1">
+                  <div>主要提供商: <Tag color="blue">{status.active_provider}</Tag></div>
+                  {status.fallback_provider && (
+                    <div>备用提供商: <Tag color="orange">{status.fallback_provider}</Tag></div>
+                  )}
+                  <div>嵌入提供商: <Tag color="green">{status.embedding_provider}</Tag></div>
+                </div>
+              }
+              type="info"
+              showIcon
+              className="mb-6"
+            />
+          )}
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSave}
-        disabled={loading}
-      >
-        <Tabs items={tabItems} />
-        
-        <div className="mt-6 flex justify-end space-x-2">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={loadSettings}
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSave}
             disabled={loading}
           >
-            重新加载
-          </Button>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            htmlType="submit"
-            loading={loading}
-          >
-            保存设置
-          </Button>
+            <Tabs items={tabItems} />
+
+            <div className="mt-6 flex justify-end space-x-2">
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={loadSettings}
+                disabled={loading}
+              >
+                重新加载
+              </Button>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                htmlType="submit"
+                loading={loading}
+              >
+                保存设置
+              </Button>
+            </div>
+          </Form>
         </div>
-      </Form>
-    </div>
+      </ResponsiveLayout>
+    </ProtectedRoute>
   );
 }

@@ -8,18 +8,18 @@ algorithm = "HS256"
 access_token_expire_minutes = 600
 
 [llm]
-provider = "openai"
-fallback_provider = "ollama"
+provider = "ollama"          # or "openai"
+fallback_provider = "openai" # optional fallback provider
 model = "qwen3:1.7b"
 temperature = 0.7
 max_tokens = 2048
-health_check_interval = 300
+health_check_interval = 300  # seconds
 
 [openai]
-api_key = "ms-b73a047d-0609-4ab7-8040-3e6ebd633839"
-base_url = "https://api-inference.modelscope.cn/v1/"
-model = "Qwen/Qwen3-235B-A22B-Thinking-2507"
-embedding_model = "iic/nlp_bert_document-segmentation_chinese-base"
+api_key = ""
+base_url = "https://api.openai.com/v1"
+model = "gpt-3.5-turbo"
+embedding_model = "text-embedding-3-small"
 timeout = 30
 
 [ollama]
@@ -28,13 +28,13 @@ model = "qwen3:1.7b"
 timeout = 30
 
 [embeddings]
-provider = "ollama"
+provider = "ollama"                        # or "openai"
 model = "shaw/dmeta-embedding-zh-small-q4"
 dimension = 768
 batch_size = 32
 
 [openai_embeddings]
-model = "iic/nlp_bert_document-segmentation_chinese-base"
+model = "text-embedding-3-small"
 dimension = 1536
 batch_size = 100
 
@@ -55,7 +55,12 @@ debug = true
 reload = true
 
 [cors]
-allow_origins = [ "http://localhost:3300", "http://172.18.3.1:3300", "http://172.18.3.1:3000", "http://localhost:3000",]
+allow_origins = [
+    "http://localhost:3300",
+    "http://172.18.3.1:3300",
+    "http://172.18.3.1:3000",
+    "http://localhost:3000",
+]
 allow_credentials = true
-allow_methods = [ "*",]
-allow_headers = [ "*",]
+allow_methods = ["*"]
+allow_headers = ["*"]
