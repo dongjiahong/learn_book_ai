@@ -2,12 +2,20 @@
 Spaced Repetition Service implementing SuperMemo SM-2 algorithm
 """
 from datetime import datetime, timedelta
-from typing import Tuple
+from typing import Tuple, List, Dict, Any, Optional
+from sqlalchemy.orm import Session
 import math
+
+from ..models.models import ReviewRecord
+from ..models.crud import CRUDReviewRecord
 
 
 class SpacedRepetitionService:
     """Service for calculating spaced repetition intervals using SuperMemo SM-2 algorithm"""
+    
+    def __init__(self, db: Session):
+        self.db = db
+        self.crud = CRUDReviewRecord(ReviewRecord)
     
     # Quality ratings mapping
     QUALITY_RATINGS = {
@@ -177,6 +185,184 @@ class SpacedRepetitionService:
         
         return max(1, int(base_time * importance_factor))
 
+    def get_due_reviews(self, user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get items due for review"""
+        try:
+            due_records = self.crud.get_due_reviews(self.db, user_id, limit)
+            
+            result = []
+            for record in due_records:
+                result.append({
+                    'id': record.id,
+                    'content_id': record.content_id,
+                    'content_type': record.content_type,
+                    'review_count': record.review_count,
+                    'last_reviewed': record.last_reviewed.isoformat() if record.last_reviewed else None,
+                    'next_review': record.next_review.isoformat() if record.next_review else None,
+                    'ease_factor': record.ease_factor,
+                    'interval_days': record.interval_days
+                })
+            
+            return result
+        except Exception as e:
+            raise Exception(f"Failed to get due reviews: {str(e)}")
 
-# Service instance
-spaced_repetition_service = SpacedRepetitionService()
+    def update_review_record(
+        self, 
+        user_id: int, 
+        content_id: int, 
+        content_type: str, 
+        quality: int
+    ) -> ReviewRecord:
+        """Update review record based on quality rating"""
+        try:
+            # Get existing record or create new one
+            record = self.crud.get_by_content(self.db, user_id, content_id, content_type)
+            
+            if not record:
+                # Create new record
+                record = ReviewRecord(
+                    user_id=user_id,
+                    content_id=content_id,
+                    content_type=content_type,
+                    review_count=0,
+                    ease_factor=2.5,
+                    interval_days=1,
+                    next_review=datetime.now()
+                )
+                self.db.add(record)
+                self.db.commit()
+                self.db.refresh(record)
+            
+            # Update using CRUD method
+            updated_record = self.crud.update_review_schedule(self.db, record, quality)
+            return updated_record
+            
+        except Exception as e:
+            raise Exception(f"Failed to update review record: {str(e)}")
+
+    def get_review_statistics(self, user_id: int) -> Dict[str, Any]:
+        """Get review statistics for a user"""
+        try:
+            from datetime import date
+            
+            # Get all user's review records
+            all_records = self.crud.get_by_user(self.db, user_id, limit=1000)
+            
+            today = datetime.now().date()
+            
+            # Calculate statistics
+            total_reviews = len(all_records)
+            due_today = len([r for r in all_records if r.next_review and r.next_review.date() <= today])
+            completed_today = len([r for r in all_records if r.last_reviewed and r.last_reviewed.date() == today])
+            
+            # Calculate average ease factor
+            avg_ease_factor = sum(r.ease_factor for r in all_records) / len(all_records) if all_records else 2.5
+            
+            return {
+                'total_reviews': total_reviews,
+                'due_today': due_today,
+                'completed_today': completed_today,
+                'average_ease_factor': round(avg_ease_factor, 2),
+                'learning_streak': self.get_learning_streak(user_id)
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to get review statistics: {str(e)}")
+
+    def get_learning_streak(self, user_id: int) -> int:
+        """Calculate learning streak (consecutive days with reviews)"""
+        try:
+            from datetime import date, timedelta
+            
+            # Get recent review records
+            records = self.crud.get_by_user(self.db, user_id, limit=1000)
+            
+            if not records:
+                return 0
+            
+            # Group by date
+            review_dates = set()
+            for record in records:
+                if record.last_reviewed:
+                    review_dates.add(record.last_reviewed.date())
+            
+            if not review_dates:
+                return 0
+            
+            # Calculate streak
+            streak = 0
+            current_date = date.today()
+            
+            while current_date in review_dates:
+                streak += 1
+                current_date -= timedelta(days=1)
+            
+            return streak
+            
+        except Exception as e:
+            return 0
+
+    def get_upcoming_reviews(self, user_id: int, days: int = 7) -> Dict[str, List[Dict[str, Any]]]:
+        """Get upcoming reviews for the next N days"""
+        try:
+            from datetime import date, timedelta
+            
+            all_records = self.crud.get_by_user(self.db, user_id, limit=1000)
+            
+            result = {}
+            today = date.today()
+            
+            for i in range(days):
+                target_date = today + timedelta(days=i)
+                date_str = target_date.isoformat()
+                
+                reviews_for_date = []
+                for record in all_records:
+                    if record.next_review and record.next_review.date() == target_date:
+                        reviews_for_date.append({
+                            'id': record.id,
+                            'content_id': record.content_id,
+                            'content_type': record.content_type,
+                            'review_count': record.review_count,
+                            'ease_factor': record.ease_factor,
+                            'interval_days': record.interval_days
+                        })
+                
+                result[date_str] = reviews_for_date
+            
+            return result
+            
+        except Exception as e:
+            raise Exception(f"Failed to get upcoming reviews: {str(e)}")
+
+    def schedule_new_item(self, user_id: int, content_id: int, content_type: str) -> ReviewRecord:
+        """Schedule a new item for spaced repetition"""
+        try:
+            # Check if already exists
+            existing = self.crud.get_by_content(self.db, user_id, content_id, content_type)
+            if existing:
+                return existing
+            
+            # Create new record
+            record = ReviewRecord(
+                user_id=user_id,
+                content_id=content_id,
+                content_type=content_type,
+                review_count=0,
+                ease_factor=2.5,
+                interval_days=1,
+                next_review=datetime.now() + timedelta(days=1)
+            )
+            
+            self.db.add(record)
+            self.db.commit()
+            self.db.refresh(record)
+            
+            return record
+            
+        except Exception as e:
+            raise Exception(f"Failed to schedule new item: {str(e)}")
+
+
+# Note: Service instance creation moved to where it's needed since it requires db parameter
