@@ -1,7 +1,7 @@
 import toml
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from .model_config import ModelConfig, ModelProvider, OpenAIConfig, OllamaConfig, EmbeddingConfig
+from .model_config import ModelConfig, ModelProvider, OpenAIConfig, OllamaConfig, EmbeddingConfig, OpenAIEmbeddingConfig
 
 class Config:
     """Configuration loader for the RAG Learning Platform"""
@@ -30,12 +30,15 @@ class Config:
             openai_section = self._config.get("openai", {})
             ollama_section = self._config.get("ollama", {})
             embeddings_section = self._config.get("embeddings", {})
+            openai_embeddings_section = self._config.get("openai_embeddings", {})
             
             # Create provider-specific configs
             api_key = openai_section.get("api_key", "")
             openai_config = OpenAIConfig(
                 api_key=api_key if api_key else None,
+                base_url=openai_section.get("base_url", "https://api.openai.com/v1"),
                 model=openai_section.get("model", "gpt-3.5-turbo"),
+                embedding_model=openai_section.get("embedding_model", "text-embedding-3-small"),
                 temperature=llm_section.get("temperature", 0.7),
                 max_tokens=llm_section.get("max_tokens", 2048),
                 timeout=openai_section.get("timeout", 30)
@@ -50,10 +53,16 @@ class Config:
             )
             
             embedding_config = EmbeddingConfig(
-                provider=embeddings_section.get("provider", "huggingface"),
+                provider=embeddings_section.get("provider", "ollama"),
                 model=embeddings_section.get("model", "shaw/dmeta-embedding-zh-small-q4"),
                 dimension=embeddings_section.get("dimension", 384),
                 batch_size=embeddings_section.get("batch_size", 32)
+            )
+            
+            openai_embedding_config = OpenAIEmbeddingConfig(
+                model=openai_embeddings_section.get("model", "text-embedding-3-small"),
+                dimension=openai_embeddings_section.get("dimension", 1536),
+                batch_size=openai_embeddings_section.get("batch_size", 100)
             )
             
             # Determine provider and fallback
@@ -68,6 +77,7 @@ class Config:
                 openai=openai_config,
                 ollama=ollama_config,
                 embedding=embedding_config,
+                openai_embedding=openai_embedding_config,
                 fallback_provider=fallback_provider,
                 health_check_interval=llm_section.get("health_check_interval", 300)
             )

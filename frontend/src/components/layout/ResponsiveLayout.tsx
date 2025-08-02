@@ -106,7 +106,7 @@ export function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: '设置',
+      label: <Link href="/settings">设置</Link>,
     },
     {
       type: 'divider' as const,

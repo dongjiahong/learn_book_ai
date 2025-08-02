@@ -42,7 +42,9 @@ class HealthCheckResult:
 class OpenAIConfig(BaseModel):
     """OpenAI API configuration"""
     api_key: Optional[str] = Field(default=None, description="OpenAI API key")
+    base_url: str = Field(default="https://api.openai.com/v1", description="OpenAI API base URL")
     model: str = Field(default="gpt-3.5-turbo", description="OpenAI model name")
+    embedding_model: str = Field(default="text-embedding-3-small", description="OpenAI embedding model name")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Temperature for generation")
     max_tokens: int = Field(default=2048, gt=0, description="Maximum tokens to generate")
     timeout: int = Field(default=30, gt=0, description="Request timeout in seconds")
@@ -73,10 +75,17 @@ class OllamaConfig(BaseModel):
 
 class EmbeddingConfig(BaseModel):
     """Embedding model configuration"""
-    provider: str = Field(default="huggingface", description="Embedding provider")
+    provider: str = Field(default="ollama", description="Embedding provider (ollama/openai)")
     model: str = Field(default="shaw/dmeta-embedding-zh-small-q4", description="Embedding model name")
     dimension: int = Field(default=384, gt=0, description="Embedding dimension")
     batch_size: int = Field(default=32, gt=0, description="Batch size for embedding")
+
+
+class OpenAIEmbeddingConfig(BaseModel):
+    """OpenAI embedding specific configuration"""
+    model: str = Field(default="text-embedding-3-small", description="OpenAI embedding model name")
+    dimension: int = Field(default=1536, gt=0, description="Embedding dimension")
+    batch_size: int = Field(default=100, gt=0, description="Batch size for embedding")
 
 
 class ModelConfig(BaseModel):
@@ -85,6 +94,7 @@ class ModelConfig(BaseModel):
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    openai_embedding: OpenAIEmbeddingConfig = Field(default_factory=OpenAIEmbeddingConfig)
     fallback_provider: Optional[ModelProvider] = Field(default=None, description="Fallback provider if primary fails")
     health_check_interval: int = Field(default=300, gt=0, description="Health check interval in seconds")
 

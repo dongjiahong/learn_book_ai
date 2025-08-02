@@ -17,7 +17,9 @@ health_check_interval = 300  # seconds
 
 [openai]
 api_key = ""
+base_url = "https://api.openai.com/v1"
 model = "gpt-3.5-turbo"
+embedding_model = "text-embedding-3-small"
 timeout = 30
 
 [ollama]
@@ -26,10 +28,15 @@ model = "qwen3:1.7b"
 timeout = 30
 
 [embeddings]
-provider = "ollama"
+provider = "ollama"                        # or "openai"
 model = "shaw/dmeta-embedding-zh-small-q4"
 dimension = 768
 batch_size = 32
+
+[openai_embeddings]
+model = "text-embedding-3-small"
+dimension = 1536
+batch_size = 100
 
 [vector_store]
 provider = "chroma"

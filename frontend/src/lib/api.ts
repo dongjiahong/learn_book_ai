@@ -1315,6 +1315,33 @@ class ApiClient {
   async getDashboardStats(token: string): Promise<DashboardStats> {
     return this.authenticatedRequest('/api/dashboard/stats', token);
   }
+
+  // Settings endpoints
+  async getModelSettings(token: string): Promise<any> {
+    return this.authenticatedRequest('/api/settings/models', token);
+  }
+
+  async updateModelSettings(token: string, settings: any): Promise<any> {
+    return this.authenticatedRequest('/api/settings/models', token, {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async getModelStatus(token: string): Promise<any> {
+    return this.authenticatedRequest('/api/settings/models/status', token);
+  }
+
+  async testModelConnection(token: string, provider: string): Promise<any> {
+    return this.authenticatedRequest('/api/settings/models/test-connection', token, {
+      method: 'POST',
+      body: JSON.stringify({ provider }),
+    });
+  }
+
+  async exportSettings(token: string): Promise<any> {
+    return this.authenticatedRequest('/api/settings/export', token);
+  }
 }
 
 export const apiClient = new ApiClient();
