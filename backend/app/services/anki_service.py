@@ -131,8 +131,9 @@ class AnkiService:
             1607392320,  # Unique model ID
             'RAG Learning Knowledge Points',
             fields=[
+                {'name': 'Question'},
+                {'name': 'Answer'},
                 {'name': 'Title'},
-                {'name': 'Content'},
                 {'name': 'Source'},
                 {'name': 'Importance'},
                 {'name': 'CreatedAt'}
@@ -141,7 +142,7 @@ class AnkiService:
                 {
                     'name': 'Card 1',
                     'qfmt': '''
-                        <div class="title">{{Title}}</div>
+                        <div class="question">{{Question}}</div>
                         <div class="source">
                             <small><strong>Source:</strong> {{Source}}</small>
                         </div>
@@ -152,9 +153,12 @@ class AnkiService:
                         {{/Importance}}
                     ''',
                     'afmt': '''
-                        <div class="title">{{Title}}</div>
+                        <div class="question">{{Question}}</div>
                         <hr>
-                        <div class="content">{{Content}}</div>
+                        <div class="answer">
+                            <strong>{{Title}}</strong><br>
+                            {{Answer}}
+                        </div>
                         <div class="source">
                             <small><strong>Source:</strong> {{Source}}</small>
                         </div>
@@ -178,13 +182,13 @@ class AnkiService:
                     background-color: #fff;
                     padding: 20px;
                 }
-                .title {
+                .question {
                     font-size: 18px;
                     font-weight: bold;
                     margin-bottom: 15px;
                     color: #2c3e50;
                 }
-                .content {
+                .answer {
                     margin: 15px 0;
                     padding: 15px;
                     background-color: #f8f9fa;
@@ -233,6 +237,10 @@ class AnkiService:
         cards = []
         
         for kp in knowledge_points:
+            # Skip knowledge points without questions
+            if not kp.question or not kp.question.strip():
+                continue
+                
             # Get source information
             source = f"{kp.document.knowledge_base.name} - {kp.document.filename}"
             
@@ -243,8 +251,9 @@ class AnkiService:
             note = genanki.Note(
                 model=self.kp_model,
                 fields=[
+                    kp.question,                        # Question
+                    kp.content,                         # Answer
                     kp.title,                           # Title
-                    kp.content,                         # Content
                     source,                             # Source
                     str(kp.importance_level),           # Importance
                     created_at                          # CreatedAt

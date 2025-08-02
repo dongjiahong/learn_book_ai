@@ -16,7 +16,8 @@ export function AnkiExportHistory({
   onExportDeleted, 
   onRefresh 
 }: AnkiExportHistoryProps) {
-  const { token } = useAuthStore();
+  const { tokens } = useAuthStore();
+  const token = tokens?.access_token;
   const [downloading, setDownloading] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 

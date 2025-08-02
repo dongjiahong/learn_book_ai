@@ -16,12 +16,14 @@ import { AnkiExportHistory } from '@/components/anki/AnkiExportHistory';
 import { AnkiCustomExportForm } from '@/components/anki/AnkiCustomExportForm';
 
 export default function AnkiExportPage() {
-  const { user, token } = useAuthStore();
+  const { user, tokens } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'knowledge-base' | 'custom' | 'history'>('knowledge-base');
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [exports, setExports] = useState<AnkiExportListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+
+  const token = tokens?.access_token;
 
   useEffect(() => {
     if (token) {

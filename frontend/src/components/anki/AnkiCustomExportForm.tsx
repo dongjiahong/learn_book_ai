@@ -23,7 +23,8 @@ export function AnkiCustomExportForm({
   exporting, 
   setExporting 
 }: AnkiCustomExportFormProps) {
-  const { token } = useAuthStore();
+  const { tokens } = useAuthStore();
+  const token = tokens?.access_token;
   const [deckName, setDeckName] = useState('');
   const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<number | null>(null);
   const [answerRecords, setAnswerRecords] = useState<AnswerRecord[]>([]);
