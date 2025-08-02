@@ -343,6 +343,7 @@ export interface LearningRecordResponse {
 
 export interface KnowledgePointUpdate {
   title?: string;
+  question?: string;
   content?: string;
   importance_level?: number;
 }

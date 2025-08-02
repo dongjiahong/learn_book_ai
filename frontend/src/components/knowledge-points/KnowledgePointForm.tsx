@@ -78,23 +78,62 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
     if (!token) return;
 
     try {
-      const document = await apiClient.getDocument(token, docId);
-      const kbResponse = await apiClient.getKnowledgeBase(token, document.knowledge_base_id);
-      
-      setSelectedKnowledgeBaseId(document.knowledge_base_id);
-      setKnowledgeBases(prev => {
-        const exists = prev.find(kb => kb.id === document.knowledge_base_id);
-        if (!exists) {
-          return [...prev, kbResponse];
+      // 由于没有直接的 getDocument 方法，我们需要通过知识点的信息来推断
+      // 或者通过遍历知识库来找到对应的文档
+      // 这里我们先尝试从已有的知识库中查找文档
+      let foundDocument: Document | null = null;
+      let foundKnowledgeBase: KnowledgeBase | null = null;
+
+      // 遍历已加载的知识库来查找文档
+      for (const kb of knowledgeBases) {
+        try {
+          const response = await apiClient.getDocuments(token, kb.id, 0, 100);
+          const document = response.documents.find(doc => doc.id === docId);
+          if (document) {
+            foundDocument = document;
+            foundKnowledgeBase = kb;
+            break;
+          }
+        } catch (error) {
+          // 继续查找其他知识库
+          continue;
         }
-        return prev;
-      });
-      
-      await loadDocuments(document.knowledge_base_id);
+      }
+
+      // 如果在已有知识库中没找到，尝试加载所有知识库
+      if (!foundDocument) {
+        const kbResponse = await apiClient.getKnowledgeBases(token, 0, 100);
+        for (const kb of kbResponse.knowledge_bases) {
+          try {
+            const response = await apiClient.getDocuments(token, kb.id, 0, 100);
+            const document = response.documents.find(doc => doc.id === docId);
+            if (document) {
+              foundDocument = document;
+              foundKnowledgeBase = kb;
+              break;
+            }
+          } catch (error) {
+            continue;
+          }
+        }
+      }
+
+      if (foundDocument && foundKnowledgeBase) {
+        setSelectedKnowledgeBaseId(foundKnowledgeBase.id);
+        setKnowledgeBases(prev => {
+          const exists = prev.find(kb => kb.id === foundKnowledgeBase!.id);
+          if (!exists) {
+            return [...prev, foundKnowledgeBase!];
+          }
+          return prev;
+        });
+        
+        await loadDocuments(foundKnowledgeBase.id);
+      }
     } catch (error) {
       console.error('Failed to load document info:', error);
     }
-  }, [token, loadDocuments]);
+  }, [token, loadDocuments, knowledgeBases]);
 
   useEffect(() => {
     if (visible && knowledgePoint) {
@@ -125,6 +164,7 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
     try {
       const updateData = {
         title: values.title,
+        question: values.question,
         content: values.content,
         importance_level: values.importance_level,
       };
@@ -216,6 +256,21 @@ const KnowledgePointForm: React.FC<KnowledgePointFormProps> = ({
             placeholder="请输入简洁明确的知识点标题"
             showCount
             maxLength={200}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="相关提问"
+          name="question"
+          rules={[
+            { max: 500, message: '提问长度不能超过500个字符' },
+          ]}
+        >
+          <TextArea
+            placeholder="请输入基于此知识点的相关问题（可选）"
+            rows={3}
+            showCount
+            maxLength={500}
           />
         </Form.Item>
 
