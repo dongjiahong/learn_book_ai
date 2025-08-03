@@ -11,6 +11,7 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { NotificationProvider } from '@/components/feedback/NotificationProvider';
 import { KeyboardShortcutProvider } from '@/components/providers/KeyboardShortcutProvider';
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
+import { AuthErrorHandler } from '@/components/auth/AuthErrorHandler';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -58,11 +59,13 @@ export const Providers: React.FC<ProvidersProps> = ({ children }) => {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <ThemedConfigProvider>
-            <NotificationProvider>
-              <KeyboardShortcutProvider>
-                {children}
-              </KeyboardShortcutProvider>
-            </NotificationProvider>
+            <AuthErrorHandler>
+              <NotificationProvider>
+                <KeyboardShortcutProvider>
+                  {children}
+                </KeyboardShortcutProvider>
+              </NotificationProvider>
+            </AuthErrorHandler>
           </ThemedConfigProvider>
         </ThemeProvider>
       </QueryClientProvider>

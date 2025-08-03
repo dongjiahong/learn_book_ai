@@ -582,6 +582,21 @@ class ApiClient {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // 处理 401 错误
+        if (response.status === 401) {
+          // 触发全局认证失效事件
+          window.dispatchEvent(new CustomEvent('auth:unauthorized', {
+            detail: { 
+              message: errorData.detail || 'Authentication required',
+              endpoint,
+              status: response.status
+            }
+          }));
+          
+          throw new Error('UNAUTHORIZED');
+        }
+        
         throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
 
@@ -595,15 +610,51 @@ class ApiClient {
   private async authenticatedRequest<T>(
     endpoint: string,
     token: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount: number = 0
   ): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      return await this.request<T>(endpoint, {
+        ...options,
+        headers: {
+          ...options.headers,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch (error) {
+      // 如果是 401 错误且还没有重试过，尝试刷新 token
+      if (error instanceof Error && error.message === 'UNAUTHORIZED' && retryCount === 0) {
+        // 触发 token 刷新事件
+        window.dispatchEvent(new CustomEvent('auth:token-refresh-needed'));
+        
+        // 等待一小段时间让 token 刷新完成，然后重试
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // 重新获取最新的 token（这里需要从存储中获取）
+        const refreshedToken = this.getLatestToken();
+        if (refreshedToken && refreshedToken !== token) {
+          return this.authenticatedRequest<T>(endpoint, refreshedToken, options, retryCount + 1);
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  // 获取最新的 token（需要从你的状态管理中获取）
+  private getLatestToken(): string | null {
+    // 这里需要根据你的状态管理实现来获取最新的 token
+    // 可以从 localStorage、sessionStorage 或者状态管理库中获取
+    try {
+      const authData = localStorage.getItem('auth-storage');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        return parsed.state?.tokens?.access_token || null;
+      }
+    } catch (error) {
+      console.error('Failed to get latest token:', error);
+    }
+    return null;
   }
 
   // Auth endpoints
@@ -1336,7 +1387,7 @@ class ApiClient {
     return this.authenticatedRequest('/api/settings/models/status', token);
   }
 
-  async testModelConnection(token: string, provider: string): Promise<any> {
+  async testModelConnection(token: string, provider: string): Promise<unknown> {
     return this.authenticatedRequest('/api/settings/models/test-connection', token, {
       method: 'POST',
       body: JSON.stringify({ provider }),

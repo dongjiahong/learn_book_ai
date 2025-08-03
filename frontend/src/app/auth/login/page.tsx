@@ -16,12 +16,26 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/dashboard');
+      // 如果已经登录，也要检查重定向路径
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectPath) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectPath);
+      } else {
+        router.push('/dashboard');
+      }
     }
   }, [isAuthenticated, router]);
 
   const handleAuthSuccess = () => {
-    router.push('/dashboard');
+    // 检查是否有保存的重定向路径
+    const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+    if (redirectPath) {
+      sessionStorage.removeItem('redirectAfterLogin');
+      router.push(redirectPath);
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   return (

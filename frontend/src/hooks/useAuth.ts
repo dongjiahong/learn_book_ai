@@ -140,8 +140,8 @@ export const useAuth = () => {
         retry: (failureCount, error: unknown) => {
             // Don't retry if unauthorized
             const errorWithMessage = error as { message?: string };
-            if (errorWithMessage?.message?.includes('401')) {
-                clearAuthData();
+            if (errorWithMessage?.message?.includes('401') || errorWithMessage?.message === 'UNAUTHORIZED') {
+                // 不要在这里直接清除认证数据，让全局错误处理器处理
                 return false;
             }
             return failureCount < 3;
